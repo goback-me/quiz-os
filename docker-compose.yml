@@ -20,6 +20,17 @@ services:
     # (gingin-forecast-db, coach_os_postgres, hive_os_postgres). Only quizos (the app)
     # can reach it, over this project's own default network.
 
+  migrate:
+    build:
+      context: .
+      target: builder
+    container_name: quizos-migrate
+    env_file:
+      - .env
+    networks:
+      - default
+    profiles: ["tools"] # never starts with `docker compose up` — invoke explicitly, see README
+
   quizos:
     build:
       context: .
@@ -41,6 +52,13 @@ services:
       - traefik.http.routers.quizos.tls=true
       - traefik.http.routers.quizos.tls.certresolver=mytlschallenge
       - traefik.http.services.quizos.loadbalancer.server.port=3000
+    deploy:
+      resources:
+        limits:
+          # Calculated as 60% of this VPS's actual capacity (2 cores, ~2.8GB available at time of
+          # writing) — re-check with `nproc --all` and `free -h` if the VPS's load changes a lot.
+          cpus: '1.2'
+          memory: 1.7G
 
 networks:
   root_default:
