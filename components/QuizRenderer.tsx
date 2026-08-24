@@ -166,7 +166,14 @@ export default function QuizRenderer({
       if (data.disqualified) {
         persistDisqualify(data.message)
       } else if (schema.endScreen.redirectUrl) {
-        window.location.href = schema.endScreen.redirectUrl
+        // window.top (not window) — navigates the whole browser tab, not just this iframe.
+        // Falls back to window.location if top-navigation is ever blocked (rare, only happens
+        // if the embedding site explicitly sandboxes the iframe without allow-top-navigation).
+        try {
+          window.top!.location.href = schema.endScreen.redirectUrl
+        } catch {
+          window.location.href = schema.endScreen.redirectUrl
+        }
       } else {
         setSubmitted(true)
       }

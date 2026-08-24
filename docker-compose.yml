@@ -16,9 +16,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    # No host port published and NOT on root_default — matches your other apps
-    # (gingin-forecast-db, coach_os_postgres, hive_os_postgres). Only quizos (the app)
-    # can reach it, over this project's own default network.
+    networks:
+      - root_default
+    # No host port published — only reachable by other containers on root_default,
+    # never from outside the VPS. Simpler single-network setup, matching how this VPS's
+    # other app+db pairs are actually wired (no cross-network Traefik routing issues).
 
   migrate:
     build:
@@ -28,7 +30,7 @@ services:
     env_file:
       - .env
     networks:
-      - default
+      - root_default
     profiles: ["tools"] # never starts with `docker compose up` — invoke explicitly, see README
 
   quizos:
@@ -43,11 +45,9 @@ services:
     env_file:
       - .env
     networks:
-      - default        # to reach quizos-db, same as every other app+db pair on this VPS
-      - root_default    # so Traefik can route to it
+      - root_default
     labels:
       - traefik.enable=true
-      - traefik.docker.network=root_default
       - traefik.http.routers.quizos.rule=Host(`${APP_DOMAIN}`)
       - traefik.http.routers.quizos.entrypoints=web,websecure
       - traefik.http.routers.quizos.tls=true
@@ -64,8 +64,6 @@ services:
 networks:
   root_default:
     external: true
-  # `default` is created automatically by compose, scoped to this project only —
-  # same pattern your other app+db pairs already use.
 
 volumes:
   quizos_pgdata:
