@@ -47,6 +47,7 @@ services:
       - root_default    # so Traefik can route to it
     labels:
       - traefik.enable=true
+      - traefik.docker.network=root_default
       - traefik.http.routers.quizos.rule=Host(`${APP_DOMAIN}`)
       - traefik.http.routers.quizos.entrypoints=web,websecure
       - traefik.http.routers.quizos.tls=true
