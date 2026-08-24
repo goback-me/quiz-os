@@ -95,18 +95,10 @@ git clone <your-repo-url> quiz-os
 cd quiz-os
 ```
 
-**3. Create the Postgres database** (reuse the shared Postgres container — don't spin up a new one)
-```bash
-docker exec -it <your-postgres-container-name> psql -U postgres
-CREATE DATABASE quizos;
-CREATE USER quizos_user WITH ENCRYPTED PASSWORD 'pick-a-strong-password';
-GRANT ALL PRIVILEGES ON DATABASE quizos TO quizos_user;
-\q
-```
-
-**4. Create `.env` on the VPS** (copy `.env.example`, fill in real values)
+**3. Create `.env` on the VPS** (copy `.env.example`, fill in real values)
 ```env
-DATABASE_URL="postgresql://quizos_user:pick-a-strong-password@<postgres-container-name>:5432/quizos"
+POSTGRES_PASSWORD="pick-a-strong-password"
+DATABASE_URL="postgresql://quizos:pick-a-strong-password@quizos-db:5432/quizos"
 WEBHOOK_ENCRYPTION_KEY="<openssl rand -hex 32 — generate once, keep forever>"
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_live_..."
 CLERK_SECRET_KEY="sk_live_..."
@@ -114,17 +106,26 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/admin
 NEXT_PUBLIC_SITE_URL="https://embed.hivesocial.com.au"
 ```
-Use the **container name** (not `localhost`) for the Postgres host since both containers share the
-`root_default` Docker network. Use Clerk's **live** keys (`pk_live_`/`sk_live_`), not test keys — get
-these from the Clerk dashboard after adding `embed.hivesocial.com.au` under Domains there.
+`POSTGRES_PASSWORD` and `DATABASE_URL`'s password must match — the first sets the database
+container's password, the second is how the app connects to it. No manual `docker exec ... psql`
+step needed; `docker compose up` creates the whole database container for you, same pattern as
+your other apps (`gingin-forecast-db`, `coach_os_postgres`, `hive_os_postgres`) — a dedicated
+Postgres container per app, not a shared instance. It has no host port published and isn't on
+`root_default`, so it's invisible to everything except this app, and can't conflict with your other
+apps' Postgres containers even though they all internally use port 5432.
 
-**5. Build and start**
+Use Clerk's **live** keys (`pk_live_`/`sk_live_`), not test keys — get these from the Clerk dashboard
+after adding `embed.hivesocial.com.au` under Domains there.
+
+**4. Build and start**
 ```bash
 docker compose build
 docker compose up -d
 ```
+First boot takes a few extra seconds — compose waits for `quizos-db`'s health check to pass before
+starting the app, so it never races to connect before Postgres is actually ready.
 
-**6. Run the database migration** (first deploy only, or after schema changes)
+**5. Run the database migration** (first deploy only, or after schema changes)
 ```bash
 docker compose exec quizos npx prisma migrate deploy
 ```
@@ -132,12 +133,12 @@ docker compose exec quizos npx prisma migrate deploy
 production. Make sure your migration files (`prisma/migrations/`) are committed to the repo — generate
 them locally first with `prisma migrate dev` if you haven't, then commit before deploying.
 
-**7. Seed the demo quiz** (optional)
+**6. Seed the demo quiz** (optional)
 ```bash
 docker compose exec quizos npx tsx prisma/seed.ts
 ```
 
-**8. Verify**
+**7. Verify**
 ```bash
 docker compose logs -f quizos
 ```
