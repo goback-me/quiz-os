@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  quizos:
+    build:
+      context: .
+      shm_size: '1gb' # Next.js builds can OOM without this on smaller VPS instances
+    container_name: quizos
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.quizos.rule=Host(`embed.hivesocial.com.au`)
+      - traefik.http.routers.quizos.entrypoints=web,websecure
+      - traefik.http.routers.quizos.tls=true
+      - traefik.http.routers.quizos.tls.certresolver=mytlschallenge
+      - traefik.http.services.quizos.loadbalancer.server.port=3000
+
+networks:
+  root_default:
+    external: true
