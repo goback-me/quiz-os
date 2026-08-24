@@ -6,8 +6,14 @@
   box-sizing: border-box;
 }
 
+html {
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
+  padding: 0;
   font-family: var(--quiz-font, 'General Sans', Inter, sans-serif);
   background: #f7f7f8;
 }
@@ -45,19 +51,21 @@ body {
 
 .quiz-embedded.quiz-page-wrapper {
   width: 100%;
+  margin: 0;
+  gap: 0;
 }
 
 .quiz-embedded .quiz-card,
 .quiz-card.quiz-embedded {
   max-width: 100%;
   width: 100%;
-  border-radius: 0;
   box-shadow: none;
   margin: 0;
 }
 
 .quiz-embedded .quiz-page-headline {
   max-width: 100%;
+  margin: 0 0 12px;
 }
 
 .quiz-page-headline {

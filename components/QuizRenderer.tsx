@@ -58,9 +58,17 @@ export default function QuizRenderer({
   // whatever container the host page already has around it.
   useEffect(() => {
     try {
-      setIsEmbedded(window.self !== window.top)
+      const embedded = window.self !== window.top
+      setIsEmbedded(embedded)
+      if (embedded) {
+        // body has a fixed gray background (app/globals.css) for the standalone case — clear it
+        // here so no gray strip shows below the card while the iframe height catches up via
+        // ResizeObserver, or if the card is simply shorter than the iframe's fallback min-height.
+        document.body.style.background = 'transparent'
+      }
     } catch {
       setIsEmbedded(true) // cross-origin access itself throwing means we're definitely in an iframe
+      document.body.style.background = 'transparent'
     }
   }, [])
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
