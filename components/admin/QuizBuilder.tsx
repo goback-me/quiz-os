@@ -19,6 +19,13 @@ function newId(prefix: string) {
   return `${prefix}_${Date.now()}_${idCounter}`
 }
 
+// Proper discriminated-union narrowing — `'options' in s` alone doesn't tell TypeScript to drop
+// contact_fields/text_input from the union, so `.question` still looked possibly-missing. This
+// picks out exactly the two step types that actually have both `question` and `options`.
+function isChoiceStep(s: QuizStep): s is Extract<QuizStep, { options: any[] }> {
+  return s.type === 'single_select' || s.type === 'multi_select'
+}
+
 export default function QuizBuilder({
   quizId,
   initialSchema,
@@ -428,7 +435,7 @@ export default function QuizBuilder({
                             className="border border-gray-200 rounded px-2 py-1 text-sm"
                           >
                             {steps
-                              .filter((s): s is typeof s & { options: any[] } => 'options' in s)
+                              .filter(isChoiceStep)
                               .map((s) => (
                                 <option key={s.id} value={s.id}>
                                   {s.question}
@@ -448,7 +455,8 @@ export default function QuizBuilder({
                             className="border border-gray-200 rounded px-2 py-1 text-sm"
                           >
                             {steps
-                              .find((s) => s.id === rule.if.field && 'options' in s)
+                              .filter(isChoiceStep)
+                              .find((s) => s.id === rule.if.field)
                               ?.options?.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
                                   {opt.label}

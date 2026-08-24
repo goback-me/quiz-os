@@ -455,7 +455,8 @@ export default function QuizBuilder({
                             className="border border-gray-200 rounded px-2 py-1 text-sm"
                           >
                             {steps
-                              .find((s) => s.id === rule.if.field && isChoiceStep(s))
+                              .filter(isChoiceStep)
+                              .find((s) => s.id === rule.if.field)
                               ?.options?.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
                                   {opt.label}
