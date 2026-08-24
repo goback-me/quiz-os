@@ -18,9 +18,6 @@ services:
       retries: 5
     networks:
       - root_default
-    # No host port published — only reachable by other containers on root_default,
-    # never from outside the VPS. Simpler single-network setup, matching how this VPS's
-    # other app+db pairs are actually wired (no cross-network Traefik routing issues).
 
   migrate:
     build:
@@ -31,12 +28,12 @@ services:
       - .env
     networks:
       - root_default
-    profiles: ["tools"] # never starts with `docker compose up` — invoke explicitly, see README
+    profiles: ["tools"]
 
   quizos:
     build:
       context: .
-      shm_size: '1gb' # Next.js builds can OOM without this on smaller VPS instances
+      shm_size: '1gb'
     container_name: quizos
     restart: unless-stopped
     depends_on:
@@ -56,8 +53,6 @@ services:
     deploy:
       resources:
         limits:
-          # Calculated as 60% of this VPS's actual capacity (2 cores, ~2.8GB available at time of
-          # writing) — re-check with `nproc --all` and `free -h` if the VPS's load changes a lot.
           cpus: '1.2'
           memory: 1.7G
 
