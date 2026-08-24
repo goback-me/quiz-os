@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { forwardWithRetry } from '@/lib/webhook'
-import { evaluateDisqualify, validateAnswers, QuizSchema, Answers } from '@/lib/quiz-logic'
+import { evaluateDisqualify, validateAnswers, formatAnswersForWebhook, QuizSchema, Answers } from '@/lib/quiz-logic'
 
 // Basic in-memory rate limit per IP — swap for a Postgres/Redis backed one if you scale this
 // across multiple containers. Good enough for single-instance VPS deploys like your others.
@@ -81,7 +81,8 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       clientSlug: quiz.client.slug,
       quizSlug: quiz.slug,
       submissionId: submission.id,
-      answers,
+      answers, // raw, for automations that key off internal field IDs
+      questions: formatAnswersForWebhook(schema, answers), // readable — actual question text + answer label, e.g. [{ question: "What are you mainly looking to consolidate?", answer: "Credit cards" }]
       utm,
       submittedAt: submission.createdAt,
     },

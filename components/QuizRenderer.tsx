@@ -51,6 +51,18 @@ export default function QuizRenderer({
   const [submitting, setSubmitting] = useState(false)
   const [checkedStorage, setCheckedStorage] = useState(false)
   const [capturedParams, setCapturedParams] = useState<Record<string, string>>({})
+  const [isEmbedded, setIsEmbedded] = useState(false)
+
+  // Detect embed context on mount — when true, we drop the outer padding/max-width/background so
+  // the form fills the iframe edge-to-edge instead of looking like a boxed widget sitting inside
+  // whatever container the host page already has around it.
+  useEffect(() => {
+    try {
+      setIsEmbedded(window.self !== window.top)
+    } catch {
+      setIsEmbedded(true) // cross-origin access itself throwing means we're definitely in an iframe
+    }
+  }, [])
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   // Report our own height to whatever parent window is embedding us (embed.js listens for this).
@@ -188,7 +200,7 @@ export default function QuizRenderer({
 
   if (disqualifyMessage) {
     return (
-      <div className="quiz-card quiz-disqualified" ref={wrapperRef}>
+      <div className={`quiz-card quiz-disqualified ${isEmbedded ? 'quiz-embedded' : ''}`} ref={wrapperRef}>
         {logoUrl && <img src={logoUrl} alt="" className="quiz-logo" />}
         <p>{disqualifyMessage}</p>
       </div>
@@ -197,7 +209,7 @@ export default function QuizRenderer({
 
   if (submitted) {
     return (
-      <div className="quiz-card quiz-end" ref={wrapperRef}>
+      <div className={`quiz-card quiz-end ${isEmbedded ? 'quiz-embedded' : ''}`} ref={wrapperRef}>
         {logoUrl && <img src={logoUrl} alt="" className="quiz-logo" />}
         <h2>{schema.endScreen.heading}</h2>
         {schema.endScreen.subheading && <p>{schema.endScreen.subheading}</p>}
@@ -206,7 +218,7 @@ export default function QuizRenderer({
   }
 
   return (
-    <div className="quiz-page-wrapper" ref={wrapperRef}>
+    <div className={`quiz-page-wrapper ${isEmbedded ? 'quiz-embedded' : ''}`} ref={wrapperRef}>
       {logoUrl && <img src={logoUrl} alt="" className="quiz-logo" />}
       {schema.showHeadline !== false && <h1 className="quiz-page-headline">{schema.headline}</h1>}
       <div className="quiz-card">

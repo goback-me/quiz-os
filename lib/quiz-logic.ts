@@ -58,7 +58,41 @@ export function evaluateDisqualify(schema: QuizSchema, answers: Answers): Disqua
   return null
 }
 
-// Keys used for the client-side "don't let them submit again after reload" block.
+/**
+ * Turns raw internal answers (e.g. { q1: 'credit_cards', q2: 'centrelink' }) into a readable
+ * list of { question, answer } pairs using the actual question text and option labels — this is
+ * what goes to the client's webhook, so whoever's looking at it in n8n/their CRM can tell what
+ * each answer means without cross-referencing the quiz schema by field ID.
+ */
+export type FormattedAnswer = { question: string; answer: string }
+
+export function formatAnswersForWebhook(schema: QuizSchema, answers: Answers): FormattedAnswer[] {
+  const formatted: FormattedAnswer[] = []
+
+  for (const step of schema.steps) {
+    if (step.type === 'single_select') {
+      const value = answers[step.id]
+      const label = step.options.find((o) => o.value === value)?.label ?? (typeof value === 'string' ? value : '')
+      formatted.push({ question: step.question, answer: label })
+    } else if (step.type === 'multi_select') {
+      const values = answers[step.id]
+      const labels = Array.isArray(values)
+        ? values.map((v) => step.options.find((o) => o.value === v)?.label ?? v).join(', ')
+        : ''
+      formatted.push({ question: step.question, answer: labels })
+    } else if (step.type === 'text_input') {
+      const value = answers[step.id]
+      formatted.push({ question: step.question, answer: typeof value === 'string' ? value : '' })
+    } else if (step.type === 'contact_fields') {
+      for (const field of step.fields) {
+        const value = answers[field.name]
+        formatted.push({ question: field.label, answer: typeof value === 'string' ? value : '' })
+      }
+    }
+  }
+
+  return formatted
+}
 // Scoped per quizId so blocking one quiz never affects another.
 export const disqualifyStorageKey = (quizId: string) => `quizos_dq_${quizId}`
 export const disqualifyCookieName = (quizId: string) => `quizos_dq_${quizId}`

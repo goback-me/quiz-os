@@ -32,6 +32,34 @@ body {
   width: 100%;
 }
 
+/* Embed mode: detected client-side (components/QuizRenderer.tsx) when running inside an iframe.
+   Strips the outer colored page background/padding and makes the card fill the full width with
+   no rounded corners/shadow, so it blends into the host site's own layout instead of looking like
+   a box-within-a-box. Uses :has() to reach the parent .quiz-page from the inner wrapper's class,
+   since .quiz-page itself is server-rendered before we know we're in an iframe. */
+.quiz-page:has(.quiz-embedded) {
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+
+.quiz-embedded.quiz-page-wrapper {
+  width: 100%;
+}
+
+.quiz-embedded .quiz-card,
+.quiz-card.quiz-embedded {
+  max-width: 100%;
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+.quiz-embedded .quiz-page-headline {
+  max-width: 100%;
+}
+
 .quiz-page-headline {
   max-width: 560px;
   text-align: center;
