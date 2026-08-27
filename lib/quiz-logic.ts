@@ -6,17 +6,20 @@ export type QuizOption = { label: string; value: string }
 
 export type QuizStep =
   | { id: string; type: 'single_select'; question: string; options: QuizOption[] }
-  | { id: string; type: 'multi_select'; question: string; options: QuizOption[] }
+  | { id: string; type: 'multi_select'; question: string; options: QuizOption[]; buttonText?: string }
   | {
       id: string
       type: 'text_input'
       question: string
       inputType: 'text' | 'email' | 'tel'
       required?: boolean
+      buttonText?: string
     }
   | {
       id: string
       type: 'contact_fields'
+      heading?: string
+      buttonText?: string
       fields: { name: string; label: string; type: 'text' | 'email' | 'tel'; required?: boolean }[]
     }
 

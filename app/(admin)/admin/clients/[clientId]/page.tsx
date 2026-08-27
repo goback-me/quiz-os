@@ -178,6 +178,11 @@ async function updateBranding(formData: FormData) {
         fieldBackground: (formData.get('fieldBackground') as string) || undefined,
         buttonColor: (formData.get('buttonColor') as string) || undefined,
         textColor: (formData.get('textColor') as string) || undefined,
+        fontSize: (formData.get('fontSize') as string) || undefined,
+        fieldBorderColor: (formData.get('fieldBorderColor') as string) || undefined,
+        fieldBorderWidth: (formData.get('fieldBorderWidth') as string) || undefined,
+        buttonBorderColor: (formData.get('buttonBorderColor') as string) || undefined,
+        buttonBorderWidth: (formData.get('buttonBorderWidth') as string) || undefined,
       },
     },
   })

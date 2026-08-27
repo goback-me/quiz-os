@@ -285,7 +285,7 @@ export default function QuizRenderer({
             })}
             {fieldError && <p className="quiz-error">{fieldError}</p>}
             <button type="button" className="quiz-submit" onClick={continueMultiSelect}>
-              Continue
+              {currentStep.buttonText || 'Continue'}
             </button>
           </fieldset>
         )}
@@ -304,14 +304,14 @@ export default function QuizRenderer({
             />
             {fieldError && <p className="quiz-error">{fieldError}</p>}
             <button type="button" className="quiz-submit" onClick={continueTextInput}>
-              Continue
+              {currentStep.buttonText || 'Continue'}
             </button>
           </div>
         )}
 
         {currentStep.type === 'contact_fields' && (
           <div>
-            <legend>Almost done — where should we send this?</legend>
+            <legend>{currentStep.heading || 'Almost done — where should we send this?'}</legend>
             {currentStep.fields.map((field) => (
               <input
                 key={field.name}
@@ -325,7 +325,7 @@ export default function QuizRenderer({
             ))}
             {fieldError && <p className="quiz-error">{fieldError}</p>}
             <button type="button" className="quiz-submit" disabled={submitting} onClick={handleSubmit}>
-              {submitting ? 'Sending…' : 'Submit'}
+              {submitting ? 'Sending…' : currentStep.buttonText || 'Submit'}
             </button>
           </div>
         )}

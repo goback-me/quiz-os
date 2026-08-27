@@ -55,6 +55,11 @@ export default function BrandSettingsForm({
     fieldBackground?: string
     buttonColor?: string
     textColor?: string
+    fontSize?: string
+    fieldBorderColor?: string
+    fieldBorderWidth?: string
+    buttonBorderColor?: string
+    buttonBorderWidth?: string
   }
   updateBranding: (formData: FormData) => Promise<void>
 }) {
@@ -67,6 +72,11 @@ export default function BrandSettingsForm({
   const [fieldBackground, setFieldBackground] = useState(initialTheme.fieldBackground ?? '')
   const [buttonColor, setButtonColor] = useState(initialTheme.buttonColor ?? '')
   const [textColor, setTextColor] = useState(initialTheme.textColor ?? '')
+  const [fontSize, setFontSize] = useState(initialTheme.fontSize ?? '15')
+  const [fieldBorderColor, setFieldBorderColor] = useState(initialTheme.fieldBorderColor ?? '')
+  const [fieldBorderWidth, setFieldBorderWidth] = useState(initialTheme.fieldBorderWidth ?? '0')
+  const [buttonBorderColor, setButtonBorderColor] = useState(initialTheme.buttonBorderColor ?? '')
+  const [buttonBorderWidth, setButtonBorderWidth] = useState(initialTheme.buttonBorderWidth ?? '0')
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(formData: FormData) {
@@ -79,6 +89,11 @@ export default function BrandSettingsForm({
     formData.set('fieldBackground', fieldBackground)
     formData.set('buttonColor', buttonColor)
     formData.set('textColor', textColor)
+    formData.set('fontSize', fontSize)
+    formData.set('fieldBorderColor', fieldBorderColor)
+    formData.set('fieldBorderWidth', fieldBorderWidth)
+    formData.set('buttonBorderColor', buttonBorderColor)
+    formData.set('buttonBorderWidth', buttonBorderWidth)
     startTransition(() => updateBranding(formData))
   }
 
@@ -180,6 +195,63 @@ export default function BrandSettingsForm({
                 value={textColor}
                 onChange={setTextColor}
               />
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Base Font Size (px)</label>
+                <input
+                  type="number"
+                  min={12}
+                  max={22}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
+                />
+              </div>
+              <div />
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Field Border</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={4}
+                    value={fieldBorderWidth}
+                    onChange={(e) => setFieldBorderWidth(e.target.value)}
+                    className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
+                    title="Width in px, 0 = no border"
+                  />
+                  <input
+                    type="color"
+                    value={fieldBorderColor || '#e5ddd0'}
+                    onChange={(e) => setFieldBorderColor(e.target.value)}
+                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Width in px, 0 = none</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Button Border</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={4}
+                    value={buttonBorderWidth}
+                    onChange={(e) => setButtonBorderWidth(e.target.value)}
+                    className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
+                    title="Width in px, 0 = no border"
+                  />
+                  <input
+                    type="color"
+                    value={buttonBorderColor || '#000000'}
+                    onChange={(e) => setButtonBorderColor(e.target.value)}
+                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Width in px, 0 = none</p>
+              </div>
             </div>
 
             <div>

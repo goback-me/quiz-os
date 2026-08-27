@@ -35,6 +35,11 @@ export default async function QuizPage({
     fieldBackground?: string
     buttonColor?: string
     textColor?: string
+    fontSize?: string
+    fieldBorderColor?: string
+    fieldBorderWidth?: string
+    buttonBorderColor?: string
+    buttonBorderWidth?: string
   }
 
   // Theme becomes CSS variables — QuizRenderer and all its children read these.
@@ -49,6 +54,17 @@ export default async function QuizPage({
     ...(theme.fieldBackground ? { '--quiz-field-bg': theme.fieldBackground } : {}),
     ...(theme.buttonColor ? { '--quiz-button-bg': theme.buttonColor } : {}),
     ...(theme.textColor ? { '--quiz-text': theme.textColor } : {}),
+    ...(theme.fontSize ? { '--quiz-font-size': `${theme.fontSize}px` } : {}),
+    ...(theme.fieldBorderWidth && Number(theme.fieldBorderWidth) > 0
+      ? {
+          '--quiz-field-border': `${theme.fieldBorderWidth}px solid ${theme.fieldBorderColor || '#e5ddd0'}`,
+        }
+      : {}),
+    ...(theme.buttonBorderWidth && Number(theme.buttonBorderWidth) > 0
+      ? {
+          '--quiz-button-border': `${theme.buttonBorderWidth}px solid ${theme.buttonBorderColor || '#000'}`,
+        }
+      : {}),
   } as React.CSSProperties
 
   return (

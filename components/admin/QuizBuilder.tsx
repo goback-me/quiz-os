@@ -267,6 +267,17 @@ export default function QuizBuilder({
                         />
                         Required
                       </label>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Button text</label>
+                        <input
+                          value={currentStep.buttonText ?? ''}
+                          onChange={(e) =>
+                            updateStep(selectedIndex, (s) => (s.type === 'text_input' ? { ...s, buttonText: e.target.value } : s))
+                          }
+                          placeholder="Continue"
+                          className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -339,8 +350,22 @@ export default function QuizBuilder({
                   )}
 
                   {currentStep.type === 'contact_fields' && (
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Fields</label>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Heading</label>
+                        <input
+                          value={currentStep.heading ?? ''}
+                          onChange={(e) =>
+                            updateStep(selectedIndex, (s) =>
+                              s.type === 'contact_fields' ? { ...s, heading: e.target.value } : s
+                            )
+                          }
+                          placeholder="Almost done — where should we send this?"
+                          className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Fields</label>
                       {currentStep.fields.map((field, fieldIndex) => (
                         <div key={fieldIndex} className="flex items-center gap-2">
                           <input
@@ -398,6 +423,20 @@ export default function QuizBuilder({
                       >
                         <Plus size={14} /> Add field
                       </button>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Button text</label>
+                        <input
+                          value={currentStep.buttonText ?? ''}
+                          onChange={(e) =>
+                            updateStep(selectedIndex, (s) =>
+                              s.type === 'contact_fields' ? { ...s, buttonText: e.target.value } : s
+                            )
+                          }
+                          placeholder="Submit"
+                          className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
