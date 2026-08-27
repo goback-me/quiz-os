@@ -30,13 +30,29 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
   const activeQuizzes = client.quizzes.filter((q) => q.status === 'live').length
 
   const theme = client.theme as { primary: string; secondary: string; font?: string; logoUrl?: string }
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/+$/, '') // strip trailing slash(es) — a trailing slash in the env var plus our own template literal was producing double slashes in every generated link
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight text-black">{client.name}</h1>
         <p className="text-sm text-gray-500 mt-1">{client.description ?? 'Client Details & Configuration'}</p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6 flex items-center gap-3">
+        <form action={updateSlug} className="flex items-center gap-2 flex-1">
+          <input type="hidden" name="clientId" value={client.id} />
+          <span className="text-xs text-gray-500 shrink-0">{siteUrl}/q/</span>
+          <input
+            name="slug"
+            defaultValue={client.slug}
+            className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-mono focus:border-black outline-none"
+            placeholder="client-slug (letters, numbers, hyphens only)"
+          />
+          <button type="submit" className="bg-black text-white px-3 py-1.5 rounded-lg text-xs font-medium shrink-0">
+            Save slug
+          </button>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -128,6 +144,23 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
   )
 }
 
+async function updateSlug(formData: FormData) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { slugify } = await import('@/lib/slugify')
+
+  const clientId = String(formData.get('clientId'))
+  const clean = slugify(String(formData.get('slug')))
+  if (!clean) return // don't save an empty slug
+
+  try {
+    await prisma.client.update({ where: { id: clientId }, data: { slug: clean } })
+  } catch (err) {
+    // Most likely cause: another client already has this slug (unique constraint).
+    console.error('Failed to update slug — likely a duplicate:', err)
+  }
+}
+
 async function updateBranding(formData: FormData) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
@@ -141,6 +174,10 @@ async function updateBranding(formData: FormData) {
         font: String(formData.get('font')),
         logoUrl: (formData.get('logoUrl') as string) || undefined,
         pageBackground: (formData.get('pageBackground') as string) || undefined,
+        cardBackground: (formData.get('cardBackground') as string) || undefined,
+        fieldBackground: (formData.get('fieldBackground') as string) || undefined,
+        buttonColor: (formData.get('buttonColor') as string) || undefined,
+        textColor: (formData.get('textColor') as string) || undefined,
       },
     },
   })

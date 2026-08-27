@@ -78,7 +78,7 @@ body {
 }
 
 .quiz-card {
-  background: #fff;
+  background: var(--quiz-card-bg, #fff);
   border-radius: var(--quiz-radius, 20px);
   padding: 36px;
   max-width: 520px;
@@ -118,7 +118,7 @@ legend {
   font-weight: 700;
   margin-bottom: 16px;
   padding: 0;
-  color: var(--quiz-secondary, #1a1a1a);
+  color: var(--quiz-text, var(--quiz-secondary, #1a1a1a));
 }
 
 /* Soft pill-style options, not bordered boxes */
@@ -130,15 +130,15 @@ legend {
   margin-bottom: 12px;
   border-radius: var(--quiz-radius, 14px);
   border: none;
-  background: color-mix(in srgb, var(--quiz-primary, #c86b4a) 8%, #f7f0e6);
-  color: var(--quiz-secondary, #1a1a1a);
+  background: var(--quiz-field-bg, color-mix(in srgb, var(--quiz-primary, #c86b4a) 8%, #f7f0e6));
+  color: var(--quiz-text, var(--quiz-secondary, #1a1a1a));
   font-size: 15px;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
 
 .quiz-option:hover {
-  background: color-mix(in srgb, var(--quiz-primary, #c86b4a) 16%, #f7f0e6);
+  background: var(--quiz-field-bg, color-mix(in srgb, var(--quiz-primary, #c86b4a) 16%, #f7f0e6));
 }
 
 .quiz-option:active {
@@ -167,7 +167,7 @@ legend {
   padding: 15px;
   border: none;
   border-radius: var(--quiz-radius, 14px);
-  background: var(--quiz-primary, #c86b4a);
+  background: var(--quiz-button-bg, var(--quiz-primary, #c86b4a));
   color: #fff;
   font-size: 15px;
   font-weight: 600;

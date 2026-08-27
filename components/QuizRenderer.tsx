@@ -73,6 +73,19 @@ export default function QuizRenderer({
   }, [])
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
+  function reportHeight(node: HTMLElement) {
+    // Take the max of the wrapper's own height AND the full document's scrollHeight — a wrapper
+    // alone can under-report if anything inside it (or a sibling like a browser-native validation
+    // tooltip) pushes content taller than the wrapper's own box, which is what was causing the
+    // embed to visibly clip content near the bottom.
+    const height = Math.max(
+      node.offsetHeight,
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight
+    )
+    window.parent.postMessage({ type: 'quizos:resize', height }, '*')
+  }
+
   // Report our own height to whatever parent window is embedding us (embed.js listens for this).
   // Harmless no-op if we're not actually in an iframe — posting to window.parent === window is fine.
   // A callback ref (not useEffect) because this component swaps between three different root
@@ -80,11 +93,10 @@ export default function QuizRenderer({
   const wrapperRef = useCallback((node: HTMLDivElement | null) => {
     resizeObserverRef.current?.disconnect()
     if (!node || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => {
-      window.parent.postMessage({ type: 'quizos:resize', height: node.offsetHeight }, '*')
-    })
+    const observer = new ResizeObserver(() => reportHeight(node))
     observer.observe(node)
     resizeObserverRef.current = observer
+    reportHeight(node) // report immediately too, don't wait for the first resize event
   }, [])
 
   // Capture every query param on the URL once, as soon as the quiz loads — this way it doesn't

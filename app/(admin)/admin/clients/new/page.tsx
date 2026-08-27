@@ -57,11 +57,12 @@ async function createClient(formData: FormData) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
   const { encrypt } = await import('@/lib/crypto')
+  const { slugify } = await import('@/lib/slugify')
 
   const client = await prisma.client.create({
     data: {
       name: String(formData.get('name')),
-      slug: String(formData.get('slug')),
+      slug: slugify(String(formData.get('slug'))),
       description: (formData.get('description') as string) || null,
       webhookUrl: encrypt(String(formData.get('webhookUrl'))),
       webhookSecret: (formData.get('webhookSecret') as string) || null,

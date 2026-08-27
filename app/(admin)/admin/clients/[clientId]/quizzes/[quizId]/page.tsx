@@ -14,7 +14,7 @@ export default async function QuizEditPage({
   if (!quiz) notFound()
 
   const theme = quiz.client.theme as { primary: string; secondary: string; pageBackground?: string }
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/+$/, '')
 
   return (
     <QuizBuilder

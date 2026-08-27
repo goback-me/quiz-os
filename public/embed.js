@@ -2,7 +2,7 @@
  * Quiz OS embed loader.
  * Usage on a third-party site:
  *   <div data-quiz="clientSlug/quizSlug"></div>
- *   <script src="https://embed.hivesocial.com.au/embed.js" defer></script>
+ *   <script src="https://embed.hivesocial.agency/embed.js" defer></script>
  *
  * - Auto-resizes to fit content (no scrollbars, no fixed height guessing)
  * - Full-width, mobile responsive by default

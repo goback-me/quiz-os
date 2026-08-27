@@ -8,7 +8,7 @@ never requires a redeploy or an env change.
 Next.js 14 (App Router) · Prisma · Postgres · Docker · Traefik · Clerk (admin auth only)
 
 Same deployment pattern as Hive OS / Coach OS / Gingin Forecast — drop into your existing VPS,
-new subdomain `embed.hivesocial.com.au`, Traefik network `root_default`.
+new subdomain `embed.hivesocial.agency`, Traefik network `root_default`.
 
 ## How it's secure
 - The browser only ever talks to `/api/submit/[quizId]` — it never sees a client's real webhook URL.
@@ -54,7 +54,7 @@ The snippet looks like this:
 
 ```html
 <div data-quiz="clientSlug/quizSlug"></div>
-<script src="https://embed.hivesocial.com.au/embed.js" defer></script>
+<script src="https://embed.hivesocial.agency/embed.js" defer></script>
 ```
 
 Replace `clientSlug/quizSlug` with the real values (same as the public URL path, e.g.
@@ -85,7 +85,7 @@ domains, which would silently blank the embed on the client's site.
 One domain serves the whole app — admin, public quiz pages, the `/api/submit` backend, and
 `embed.js` all come from this same Next.js deploy, no separate frontend/backend split needed.
 
-**1. DNS** — point `embed.hivesocial.com.au` (A record) at your VPS IP (`151.106.120.202`), same as your other subdomains.
+**1. DNS** — point `embed.hivesocial.agency` (A record) at your VPS IP (`151.106.120.202`), same as your other subdomains.
 
 **2. Get the code onto the VPS**
 ```bash
@@ -104,7 +104,7 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_live_..."
 CLERK_SECRET_KEY="sk_live_..."
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/admin
-NEXT_PUBLIC_SITE_URL="https://embed.hivesocial.com.au"
+NEXT_PUBLIC_SITE_URL="https://embed.hivesocial.agency"
 ```
 `POSTGRES_PASSWORD` and `DATABASE_URL`'s password must match — the first sets the database
 container's password, the second is how the app connects to it. No manual `docker exec ... psql`
@@ -115,7 +115,7 @@ Postgres container per app, not a shared instance. It has no host port published
 apps' Postgres containers even though they all internally use port 5432.
 
 Use Clerk's **live** keys (`pk_live_`/`sk_live_`), not test keys — get these from the Clerk dashboard
-after adding `embed.hivesocial.com.au` under Domains there.
+after adding `embed.hivesocial.agency` under Domains there.
 
 **4. Build and start**
 ```bash
@@ -127,22 +127,30 @@ starting the app, so it never races to connect before Postgres is actually ready
 
 **5. Run the database migration** (first deploy only, or after schema changes)
 ```bash
-docker compose exec quizos npx prisma migrate deploy
+docker compose run --rm migrate npx prisma migrate deploy
 ```
 `migrate deploy` (not `migrate dev`) — it applies existing migrations without prompting, safe for
 production. Make sure your migration files (`prisma/migrations/`) are committed to the repo — generate
 them locally first with `prisma migrate dev` if you haven't, then commit before deploying.
 
+Note this runs against the `migrate` service (defined in `docker-compose.yml`, using the `builder`
+build stage), **not** `docker compose exec quizos ...` — the running `quizos` container uses Next's
+standalone output, which prunes `node_modules` down to only what's needed to serve the app. The
+`prisma` CLI (only needed for migrations, never imported by the app itself) gets stripped out, so
+`npx prisma` inside that container would silently fetch the latest Prisma from the registry instead
+of your pinned version — a real problem if that latest major version has breaking schema changes.
+The `migrate` service is built from the fuller `builder` stage specifically to avoid this.
+
 **6. Seed the demo quiz** (optional)
 ```bash
-docker compose exec quizos npx tsx prisma/seed.ts
+docker compose run --rm migrate npx tsx prisma/seed.ts
 ```
 
 **7. Verify**
 ```bash
 docker compose logs -f quizos
 ```
-Look for the Next.js server starting cleanly, then visit `https://embed.hivesocial.com.au/admin/clients`.
+Look for the Next.js server starting cleanly, then visit `https://embed.hivesocial.agency/admin/clients`.
 
 ### Common build errors and the fix already baked in
 - **"Environment variable not found: DATABASE_URL" during build** — the Dockerfile sets a placeholder
@@ -162,7 +170,7 @@ Look for the Next.js server starting cleanly, then visit `https://embed.hivesoci
 git pull
 docker compose build
 docker compose up -d
-docker compose exec quizos npx prisma migrate deploy  # only if schema.prisma changed
+docker compose run --rm migrate npx prisma migrate deploy  # only if schema.prisma changed
 ```
 
 ## Local setup
@@ -174,12 +182,36 @@ npm run dev
 ```
 Visit `/q/debt-consolidation-client/debt-consolidation`.
 
+## Webhook payload format
+The client's n8n webhook receives both the raw internal answers AND a readable version — no need
+to cross-reference `q1`/`q2` field IDs against the quiz schema to know what was actually answered:
+
+```json
+{
+  "clientSlug": "debt-consolidation-client",
+  "quizSlug": "debt-consolidation",
+  "submissionId": "clx...",
+  "answers": { "q1": "credit_cards", "q2": "full_time", "fullName": "Jane Doe" },
+  "questions": [
+    { "question": "What are you mainly looking to consolidate?", "answer": "Credit cards" },
+    { "question": "What best describes your current employment situation?", "answer": "Full-time employed" },
+    { "question": "Full name", "answer": "Jane Doe" }
+  ],
+  "utm": { "utm_source": "facebook", "campaign": "Q3-Leads" },
+  "submittedAt": "2026-08-24T12:00:00.000Z"
+}
+```
+`questions` (`lib/quiz-logic.ts` → `formatAnswersForWebhook`) resolves each field ID to its actual
+question text and each option value to its label — for `multi_select`, multiple selections join
+with a comma. Use `questions` for anything human-facing (Slack notification, email, n8n field
+mapping), keep `answers` around for anything that needs to key off stable internal IDs instead.
+
 ## UTM / query tracking
 Every query param on the quiz URL is captured automatically — not just `utm_*`. Append whatever
 your ad platform needs to the link and it flows straight through to the webhook payload untouched:
 
 ```
-https://embed.hivesocial.com.au/q/[clientSlug]/[quizSlug]?lead_source=facebook&campaign={{campaign.name}}&adset={{adset.name}}&ad_name={{ad.name}}&utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.id}}&utm_content={{ad.id}}&utm_adset={{adset.id}}&utm_ad={{ad.id}}
+https://embed.hivesocial.agency/q/[clientSlug]/[quizSlug]?lead_source=facebook&campaign={{campaign.name}}&adset={{adset.name}}&ad_name={{ad.name}}&utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.id}}&utm_content={{ad.id}}&utm_adset={{adset.id}}&utm_ad={{ad.id}}
 ```
 
 It's captured once on page load (`components/QuizRenderer.tsx`) and sent as the `utm` object in the

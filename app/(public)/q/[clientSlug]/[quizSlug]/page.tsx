@@ -31,6 +31,10 @@ export default async function QuizPage({
     radius?: string
     logoUrl?: string
     pageBackground?: string
+    cardBackground?: string
+    fieldBackground?: string
+    buttonColor?: string
+    textColor?: string
   }
 
   // Theme becomes CSS variables — QuizRenderer and all its children read these.
@@ -41,6 +45,10 @@ export default async function QuizPage({
     '--quiz-radius': theme.radius ?? '20px',
     '--quiz-font': theme.font ?? "'General Sans', Inter, sans-serif",
     ...(theme.pageBackground ? { '--quiz-page-bg': theme.pageBackground } : {}),
+    ...(theme.cardBackground ? { '--quiz-card-bg': theme.cardBackground } : {}),
+    ...(theme.fieldBackground ? { '--quiz-field-bg': theme.fieldBackground } : {}),
+    ...(theme.buttonColor ? { '--quiz-button-bg': theme.buttonColor } : {}),
+    ...(theme.textColor ? { '--quiz-text': theme.textColor } : {}),
   } as React.CSSProperties
 
   return (
