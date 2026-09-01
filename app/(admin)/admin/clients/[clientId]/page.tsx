@@ -241,7 +241,6 @@ async function createQuiz(formData: FormData) {
             ],
           },
         ],
-        disqualify: [],
         endScreen: { heading: 'Thanks!' },
       },
     },

@@ -26,7 +26,7 @@ const debtConsolidationSchema: QuizSchema = {
         { label: 'Full-time employed', value: 'full_time' },
         { label: 'Part-time employed', value: 'part_time' },
         { label: 'Self-employed', value: 'self_employed' },
-        { label: 'Centrelink', value: 'centrelink' },
+        { label: 'Centrelink', value: 'centrelink', disqualify: true },
       ],
     },
     {
@@ -49,13 +49,11 @@ const debtConsolidationSchema: QuizSchema = {
       ],
     },
   ],
-  disqualify: [
-    {
-      if: { field: 'q2', equals: 'centrelink' },
-      message:
-        "Thanks for your interest. Based on your answers, we're not able to offer debt consolidation options for you at this time.",
-    },
-  ],
+  disqualifyAction: {
+    mode: 'message',
+    message:
+      "Thanks for your interest. Based on your answers, we're not able to offer debt consolidation options for you at this time.",
+  },
   endScreen: {
     heading: "Thanks — we've received your details",
     subheading: 'One of our consultants will be in touch shortly.',

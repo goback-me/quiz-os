@@ -36,13 +36,31 @@ new subdomain `embed.hivesocial.agency`, Traefik network `root_default`.
 Edit `Client.theme` JSON (`primary`, `secondary`, `font`, `radius`, `logoUrl`) — no component
 changes, ever. Same renderer for every client.
 
-## Disqualify rules
+## Disqualify logic
+Set directly on each option, in the builder — no separate rule list to keep in sync with the
+questions. Next to every answer option is a small ban icon toggle; turn it on for any option that
+should disqualify a visitor who picks it. In the schema JSON it looks like:
 ```json
-"disqualify": [
-  { "if": { "field": "q2", "equals": "centrelink" }, "message": "..." }
-]
+{
+  "id": "q2",
+  "type": "single_select",
+  "question": "What best describes your current employment situation?",
+  "options": [
+    { "label": "Full-time employed", "value": "full_time" },
+    { "label": "Centrelink", "value": "centrelink", "disqualify": true }
+  ]
+}
 ```
-Add more rules to the array as needed — `equals` or `in: [...]` supported (see `lib/quiz-logic.ts`).
+What happens when a disqualifying option gets picked is a single quiz-wide setting (the "When
+Disqualified" section in the builder, below the questions) — either show a message (custom text,
+or leave blank for a sensible default) or redirect to a URL:
+```json
+"disqualifyAction": { "mode": "message", "message": "Custom text here" }
+// or
+"disqualifyAction": { "mode": "redirect", "redirectUrl": "https://client-site.com/not-eligible" }
+```
+Redirect navigates the visitor's whole browser tab (`window.top`), not just the embedded iframe,
+so it works correctly even when the quiz is embedded on a third-party site.
 
 ## Embedding on a third-party website
 

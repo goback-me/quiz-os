@@ -124,6 +124,19 @@ export default function QuizRenderer({
     setDisqualifyMessage(message)
   }
 
+  function handleDisqualifyResult(result: NonNullable<ReturnType<typeof evaluateDisqualify>>): boolean {
+    if (result.mode === 'redirect') {
+      try {
+        window.top!.location.href = result.redirectUrl
+      } catch {
+        window.location.href = result.redirectUrl
+      }
+      return true
+    }
+    persistDisqualify(result.message)
+    return true
+  }
+
   function goNext() {
     setFieldError(null)
     if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1)
@@ -134,9 +147,9 @@ export default function QuizRenderer({
     setAnswers(nextAnswers)
 
     // Instant client-side check for UX — the real enforcement happens again server-side on submit.
-    const rule = evaluateDisqualify(schema, nextAnswers)
-    if (rule) {
-      persistDisqualify(rule.message)
+    const result = evaluateDisqualify(schema, nextAnswers)
+    if (result) {
+      handleDisqualifyResult(result)
       return
     }
     goNext()
@@ -153,6 +166,11 @@ export default function QuizRenderer({
     const current = answers[currentStep.id]
     if (!Array.isArray(current) || current.length === 0) {
       setFieldError('Select at least one option')
+      return
+    }
+    const result = evaluateDisqualify(schema, answers)
+    if (result) {
+      handleDisqualifyResult(result)
       return
     }
     goNext()
@@ -196,7 +214,15 @@ export default function QuizRenderer({
         return
       }
       if (data.disqualified) {
-        persistDisqualify(data.message)
+        if (data.disqualifyMode === 'redirect' && data.redirectUrl) {
+          try {
+            window.top!.location.href = data.redirectUrl
+          } catch {
+            window.location.href = data.redirectUrl
+          }
+        } else {
+          persistDisqualify(data.message)
+        }
       } else if (schema.endScreen.redirectUrl) {
         // window.top (not window) — navigates the whole browser tab, not just this iframe.
         // Falls back to window.location if top-navigation is ever blocked (rare, only happens

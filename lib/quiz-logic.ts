@@ -2,7 +2,13 @@
 // on the server (submit route), so the disqualify check is enforced in both places.
 // Client-side check = instant UX. Server-side check = the one that's actually trusted.
 
-export type QuizOption = { label: string; value: string }
+export type QuizOption = {
+  label: string
+  value: string
+  /** When true, selecting this specific option disqualifies the visitor. Lives directly on the
+   *  option — no separate rule list to keep in sync, no dropdown to pick "which question". */
+  disqualify?: boolean
+}
 
 export type QuizStep =
   | { id: string; type: 'single_select'; question: string; options: QuizOption[] }
@@ -23,10 +29,14 @@ export type QuizStep =
       fields: { name: string; label: string; type: 'text' | 'email' | 'tel'; required?: boolean }[]
     }
 
-export type DisqualifyRule = {
-  if: { field: string; equals: string } | { field: string; in: string[] }
-  message: string
-}
+/** What happens when a disqualifying option gets selected — the same outcome applies to every
+ *  disqualifying option across the whole quiz, set once here rather than per-option. */
+export type DisqualifyAction =
+  | { mode: 'message'; message?: string } // blank message falls back to DEFAULT_DISQUALIFY_MESSAGE
+  | { mode: 'redirect'; redirectUrl: string }
+
+export const DEFAULT_DISQUALIFY_MESSAGE =
+  "Thanks for your interest. Based on your answers, we're not able to help with this at this time."
 
 export type QuizSchema = {
   headline: string
@@ -34,7 +44,7 @@ export type QuizSchema = {
   /** Whether the headline renders above the card on the public page. Default true if omitted. */
   showHeadline?: boolean
   steps: QuizStep[]
-  disqualify?: DisqualifyRule[]
+  disqualifyAction?: DisqualifyAction
   endScreen: { heading: string; subheading?: string; redirectUrl?: string }
   /** Optional trust line shown below the card, e.g. "160+ NDIS participants supported, grown by referral."
    *  Text before the first comma renders bold in the primary color; the rest renders in plain secondary color. */
@@ -43,20 +53,26 @@ export type QuizSchema = {
 
 export type Answers = Record<string, string | string[]>
 
+export type DisqualifyResult = { mode: 'message'; message: string } | { mode: 'redirect'; redirectUrl: string }
+
 /**
- * Returns the first matching disqualify rule for the given answers so far, or null if none match.
+ * Scans every single/multi-select step's answered value(s) for one flagged with `disqualify: true`.
  * Called after every answer client-side (for instant feedback) and again server-side on submit
  * (never trust the client — someone could tamper with the request before it hits /api/submit).
  */
-export function evaluateDisqualify(schema: QuizSchema, answers: Answers): DisqualifyRule | null {
-  if (!schema.disqualify) return null
-  for (const rule of schema.disqualify) {
-    const value = answers[rule.if.field]
-    if ('equals' in rule.if) {
-      if (value === rule.if.equals) return rule
-    } else if ('in' in rule.if) {
-      if (typeof value === 'string' && rule.if.in.includes(value)) return rule
+export function evaluateDisqualify(schema: QuizSchema, answers: Answers): DisqualifyResult | null {
+  for (const step of schema.steps) {
+    if (step.type !== 'single_select' && step.type !== 'multi_select') continue
+    const value = answers[step.id]
+    const selected = Array.isArray(value) ? value : value !== undefined ? [value] : []
+    const hit = step.options.some((o) => o.disqualify && selected.includes(o.value))
+    if (!hit) continue
+
+    const action = schema.disqualifyAction
+    if (action?.mode === 'redirect' && action.redirectUrl) {
+      return { mode: 'redirect', redirectUrl: action.redirectUrl }
     }
+    return { mode: 'message', message: (action?.mode === 'message' && action.message) || DEFAULT_DISQUALIFY_MESSAGE }
   }
   return null
 }

@@ -52,21 +52,27 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
   }
 
   // NEVER trust the client's disqualify check — re-run it here. This is the check that counts.
-  const disqualifyRule = evaluateDisqualify(schema, answers)
+  const disqualifyResult = evaluateDisqualify(schema, answers)
 
-  if (disqualifyRule) {
+  if (disqualifyResult) {
     await prisma.submission.create({
       data: {
         quizId: quiz.id,
         answers,
         utm,
         disqualified: true,
-        disqualifyMsg: disqualifyRule.message,
+        disqualifyMsg: disqualifyResult.mode === 'message' ? disqualifyResult.message : `redirect:${disqualifyResult.redirectUrl}`,
         webhookStatus: 'skipped', // disqualified leads are never forwarded to the client's webhook
       },
     })
     // Same shape as a normal response — nothing about *why* leaks anything about the client's webhook.
-    return NextResponse.json({ ok: true, disqualified: true, message: disqualifyRule.message })
+    return NextResponse.json({
+      ok: true,
+      disqualified: true,
+      disqualifyMode: disqualifyResult.mode,
+      message: disqualifyResult.mode === 'message' ? disqualifyResult.message : undefined,
+      redirectUrl: disqualifyResult.mode === 'redirect' ? disqualifyResult.redirectUrl : undefined,
+    })
   }
 
   const submission = await prisma.submission.create({

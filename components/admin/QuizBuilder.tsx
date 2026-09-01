@@ -5,25 +5,18 @@ import {
   GripVertical,
   Plus,
   X,
-  ChevronDown,
   Ban,
   Smartphone,
   Monitor,
   Trash2,
 } from 'lucide-react'
 import type { QuizSchema, QuizStep } from '@/lib/quiz-logic'
+import { DEFAULT_DISQUALIFY_MESSAGE } from '@/lib/quiz-logic'
 
 let idCounter = 0
 function newId(prefix: string) {
   idCounter += 1
   return `${prefix}_${Date.now()}_${idCounter}`
-}
-
-// Proper discriminated-union narrowing — `'options' in s` alone doesn't tell TypeScript to drop
-// contact_fields/text_input from the union, so `.question` still looked possibly-missing. This
-// picks out exactly the two step types that actually have both `question` and `options`.
-function isChoiceStep(s: QuizStep): s is Extract<QuizStep, { options: any[] }> {
-  return s.type === 'single_select' || s.type === 'multi_select'
 }
 
 export default function QuizBuilder({
@@ -44,7 +37,6 @@ export default function QuizBuilder({
   const [schema, setSchema] = useState<QuizSchema>(initialSchema)
   const [status, setStatus] = useState(initialStatus)
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [dqOpen, setDqOpen] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [pending, startTransition] = useTransition()
   const [savedFlash, setSavedFlash] = useState(false)
@@ -300,8 +292,11 @@ export default function QuizBuilder({
                         <label className="block text-xs font-medium text-gray-600 mb-1.5">Options</label>
                         <div className="space-y-2">
                           {currentStep.options.map((opt, optIndex) => (
-                            <div key={optIndex} className="flex items-center gap-2">
-                              <GripVertical size={16} className="text-gray-300" />
+                            <div
+                              key={optIndex}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg ${opt.disqualify ? 'bg-red-50' : ''}`}
+                            >
+                              <GripVertical size={16} className="text-gray-300 shrink-0" />
                               <input
                                 value={opt.label}
                                 onChange={(e) =>
@@ -309,6 +304,7 @@ export default function QuizBuilder({
                                     if (!('options' in s)) return s
                                     const nextOptions = [...s.options]
                                     nextOptions[optIndex] = {
+                                      ...nextOptions[optIndex],
                                       label: e.target.value,
                                       value: e.target.value.toLowerCase().replace(/\s+/g, '_'),
                                     }
@@ -317,13 +313,31 @@ export default function QuizBuilder({
                                 }
                                 className="flex-1 p-1.5 bg-white border border-gray-200 rounded text-sm focus:border-black outline-none"
                               />
+                              <label
+                                className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none"
+                                title="Selecting this option disqualifies the visitor"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={opt.disqualify ?? false}
+                                  onChange={(e) =>
+                                    updateStep(selectedIndex, (s) => {
+                                      if (!('options' in s)) return s
+                                      const nextOptions = [...s.options]
+                                      nextOptions[optIndex] = { ...nextOptions[optIndex], disqualify: e.target.checked }
+                                      return { ...s, options: nextOptions }
+                                    })
+                                  }
+                                />
+                                <Ban size={13} className={opt.disqualify ? 'text-red-500' : 'text-gray-300'} />
+                              </label>
                               <button
                                 onClick={() =>
                                   updateStep(selectedIndex, (s) =>
                                     !('options' in s) ? s : { ...s, options: s.options.filter((_, i) => i !== optIndex) }
                                   )
                                 }
-                                className="text-gray-400 hover:text-red-500"
+                                className="text-gray-400 hover:text-red-500 shrink-0"
                               >
                                 <X size={16} />
                               </button>
@@ -344,6 +358,9 @@ export default function QuizBuilder({
                           >
                             <Plus size={14} /> Add Option
                           </button>
+                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-2">
+                            <Ban size={12} /> Toggle the icon next to an option to disqualify visitors who pick it
+                          </p>
                         </div>
                       </div>
                     </>
@@ -443,113 +460,76 @@ export default function QuizBuilder({
               </div>
             )}
 
-            {/* Disqualify rules */}
+            {/* Disqualify outcome */}
             <div className="mb-8">
-              <button
-                onClick={() => setDqOpen((v) => !v)}
-                className="flex items-center justify-between w-full p-4 bg-white rounded-xl shadow-sm border border-gray-100 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <Ban size={16} className="text-red-500" /> Disqualify Rules ({schema.disqualify?.length ?? 0})
-                </span>
-                <ChevronDown size={18} className={dqOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
-              </button>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Ban size={18} className="text-red-500" /> When Disqualified
+              </h3>
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                <p className="text-xs text-gray-500">
+                  Mark which answers disqualify a visitor directly on each question's options (the{' '}
+                  <Ban size={11} className="inline text-red-500" /> icon next to each option, above). This section
+                  controls what happens once one of those options is picked — the same outcome applies everywhere in
+                  this quiz.
+                </p>
 
-              {dqOpen && (
-                <div className="bg-white border border-t-0 border-gray-100 rounded-b-xl p-4 -mt-1 shadow-sm space-y-3">
-                  {(schema.disqualify ?? []).map((rule, ruleIndex) => (
-                    <div key={ruleIndex} className="flex items-start gap-2 bg-gray-50 p-3 rounded-lg">
-                      <div className="flex-1 grid grid-cols-1 gap-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-500">If</span>
-                          <select
-                            value={rule.if.field}
-                            onChange={(e) =>
-                              setSchema((prev) => {
-                                const next = [...(prev.disqualify ?? [])]
-                                next[ruleIndex] = { ...next[ruleIndex], if: { field: e.target.value, equals: '' } }
-                                return { ...prev, disqualify: next }
-                              })
-                            }
-                            className="border border-gray-200 rounded px-2 py-1 text-sm"
-                          >
-                            {steps
-                              .filter(isChoiceStep)
-                              .map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.question}
-                                </option>
-                              ))}
-                          </select>
-                          <span className="text-gray-500">equals</span>
-                          <select
-                            value={'equals' in rule.if ? rule.if.equals : ''}
-                            onChange={(e) =>
-                              setSchema((prev) => {
-                                const next = [...(prev.disqualify ?? [])]
-                                next[ruleIndex] = { ...next[ruleIndex], if: { field: next[ruleIndex].if.field, equals: e.target.value } }
-                                return { ...prev, disqualify: next }
-                              })
-                            }
-                            className="border border-gray-200 rounded px-2 py-1 text-sm"
-                          >
-                            {steps
-                              .filter(isChoiceStep)
-                              .find((s) => s.id === rule.if.field)
-                              ?.options?.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </option>
-                              )) ?? <option value="">—</option>}
-                          </select>
-                        </div>
-                        <input
-                          value={rule.message}
-                          onChange={(e) =>
-                            setSchema((prev) => {
-                              const next = [...(prev.disqualify ?? [])]
-                              next[ruleIndex] = { ...next[ruleIndex], message: e.target.value }
-                              return { ...prev, disqualify: next }
-                            })
-                          }
-                          placeholder="Message shown to disqualified users"
-                          className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full"
-                        />
-                      </div>
-                      <button
-                        onClick={() =>
-                          setSchema((prev) => ({
-                            ...prev,
-                            disqualify: (prev.disqualify ?? []).filter((_, i) => i !== ruleIndex),
-                          }))
-                        }
-                        className="text-gray-400 hover:text-red-500 mt-1"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
+                <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      const firstSelect = steps.find((s) => 'options' in s)
-                      if (!firstSelect || !('options' in firstSelect)) return
-                      setSchema((prev) => ({
-                        ...prev,
-                        disqualify: [
-                          ...(prev.disqualify ?? []),
-                          {
-                            if: { field: firstSelect.id, equals: firstSelect.options[0]?.value ?? '' },
-                            message: "We're not able to help with this at this time.",
-                          },
-                        ],
-                      }))
-                    }}
-                    className="text-black text-sm hover:underline flex items-center gap-1"
+                    type="button"
+                    onClick={() => setSchema((prev) => ({ ...prev, disqualifyAction: { mode: 'message', message: '' } }))}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      (schema.disqualifyAction?.mode ?? 'message') === 'message'
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
                   >
-                    <Plus size={14} /> Add rule
+                    Show a message
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSchema((prev) => ({ ...prev, disqualifyAction: { mode: 'redirect', redirectUrl: '' } }))
+                    }
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      schema.disqualifyAction?.mode === 'redirect'
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Redirect to a page
                   </button>
                 </div>
-              )}
+
+                {(schema.disqualifyAction?.mode ?? 'message') === 'message' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Message</label>
+                    <textarea
+                      value={schema.disqualifyAction?.mode === 'message' ? schema.disqualifyAction.message ?? '' : ''}
+                      onChange={(e) =>
+                        setSchema((prev) => ({ ...prev, disqualifyAction: { mode: 'message', message: e.target.value } }))
+                      }
+                      placeholder={DEFAULT_DISQUALIFY_MESSAGE}
+                      className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none resize-none h-20"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Leave blank to use the default message shown above as a placeholder.</p>
+                  </div>
+                )}
+
+                {schema.disqualifyAction?.mode === 'redirect' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Redirect URL</label>
+                    <input
+                      value={schema.disqualifyAction.redirectUrl ?? ''}
+                      onChange={(e) =>
+                        setSchema((prev) => ({ ...prev, disqualifyAction: { mode: 'redirect', redirectUrl: e.target.value } }))
+                      }
+                      placeholder="https://client-site.com/not-eligible"
+                      className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Navigates the visitor's whole browser tab, even when this quiz is embedded in an iframe.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Display settings */}
