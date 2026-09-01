@@ -106,6 +106,20 @@ export default function QuizRenderer({
     setCapturedParams(captureUtm())
   }, [])
 
+  // Detect back/forward-cache restoration (hitting the browser's Back button after being
+  // redirected away often restores the page from cache instead of a real reload — React never
+  // remounts, so the disqualify check above never re-runs, and the frozen pre-redirect quiz state
+  // just reappears). Force a real reload when that happens so the check actually runs again.
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) {
+        window.location.reload()
+      }
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [])
+
   // On mount: if this browser already got disqualified on this quiz, block it permanently —
   // survives reload even though this is a public, unauthenticated form. Handles both outcome
   // modes: a stored "message" shows the block screen again; a stored "redirect" re-navigates
