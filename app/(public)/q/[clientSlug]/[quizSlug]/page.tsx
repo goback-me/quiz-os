@@ -40,6 +40,7 @@ export default async function QuizPage({
     fieldBorderWidth?: string
     buttonBorderColor?: string
     buttonBorderWidth?: string
+    hoverColor?: string
   }
 
   // Theme becomes CSS variables — QuizRenderer and all its children read these.
@@ -47,7 +48,7 @@ export default async function QuizPage({
   const themeVars = {
     '--quiz-primary': theme.primary,
     '--quiz-secondary': theme.secondary,
-    '--quiz-radius': theme.radius ?? '20px',
+    '--quiz-radius': theme.radius ? `${theme.radius}px` : '20px',
     '--quiz-font': theme.font ?? "'General Sans', Inter, sans-serif",
     ...(theme.pageBackground ? { '--quiz-page-bg': theme.pageBackground } : {}),
     ...(theme.cardBackground ? { '--quiz-card-bg': theme.cardBackground } : {}),
@@ -65,6 +66,7 @@ export default async function QuizPage({
           '--quiz-button-border': `${theme.buttonBorderWidth}px solid ${theme.buttonBorderColor || '#000'}`,
         }
       : {}),
+    ...(theme.hoverColor ? { '--quiz-hover-bg': theme.hoverColor } : {}),
   } as React.CSSProperties
 
   return (

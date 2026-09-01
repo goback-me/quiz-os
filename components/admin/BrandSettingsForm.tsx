@@ -60,6 +60,8 @@ export default function BrandSettingsForm({
     fieldBorderWidth?: string
     buttonBorderColor?: string
     buttonBorderWidth?: string
+    hoverColor?: string
+    radius?: string
   }
   updateBranding: (formData: FormData) => Promise<void>
 }) {
@@ -77,6 +79,8 @@ export default function BrandSettingsForm({
   const [fieldBorderWidth, setFieldBorderWidth] = useState(initialTheme.fieldBorderWidth ?? '0')
   const [buttonBorderColor, setButtonBorderColor] = useState(initialTheme.buttonBorderColor ?? '')
   const [buttonBorderWidth, setButtonBorderWidth] = useState(initialTheme.buttonBorderWidth ?? '0')
+  const [hoverColor, setHoverColor] = useState(initialTheme.hoverColor ?? '')
+  const [radius, setRadius] = useState(initialTheme.radius ?? '14')
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(formData: FormData) {
@@ -94,6 +98,8 @@ export default function BrandSettingsForm({
     formData.set('fieldBorderWidth', fieldBorderWidth)
     formData.set('buttonBorderColor', buttonBorderColor)
     formData.set('buttonBorderWidth', buttonBorderWidth)
+    formData.set('hoverColor', hoverColor)
+    formData.set('radius', radius)
     startTransition(() => updateBranding(formData))
   }
 
@@ -209,7 +215,37 @@ export default function BrandSettingsForm({
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
                 />
               </div>
-              <div />
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Corner Radius (px)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={32}
+                  value={radius}
+                  onChange={(e) => setRadius(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">Applies to the card, fields, and button — 0 = sharp corners</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Field Hover Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={hoverColor || primary}
+                    onChange={(e) => setHoverColor(e.target.value)}
+                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={hoverColor}
+                    onChange={(e) => setHoverColor(e.target.value)}
+                    placeholder="Auto (tints from Primary)"
+                    className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs font-mono focus:border-black outline-none"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Background shown while hovering an option — leave blank for automatic</p>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-black mb-2">Field Border</label>
                 <div className="flex items-center gap-2">

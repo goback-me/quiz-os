@@ -8,6 +8,7 @@ import {
   disqualifyStorageKey,
   disqualifyCookieName,
   validateFieldValue,
+  DEFAULT_DISQUALIFY_MESSAGE,
 } from '@/lib/quiz-logic'
 
 function getCookie(name: string): string | null {
@@ -106,11 +107,29 @@ export default function QuizRenderer({
   }, [])
 
   // On mount: if this browser already got disqualified on this quiz, block it permanently —
-  // survives reload even though this is a public, unauthenticated form.
+  // survives reload even though this is a public, unauthenticated form. Handles both outcome
+  // modes: a stored "message" shows the block screen again; a stored "redirect" re-navigates
+  // immediately, since the visitor shouldn't be able to get back to the quiz by hitting back.
   useEffect(() => {
     const stored =
       localStorage.getItem(disqualifyStorageKey(quizId)) ?? getCookie(disqualifyCookieName(quizId))
-    if (stored) setDisqualifyMessage(stored)
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as { mode: 'message' | 'redirect'; message?: string; redirectUrl?: string }
+        if (parsed.mode === 'redirect' && parsed.redirectUrl) {
+          try {
+            window.top!.location.href = parsed.redirectUrl
+          } catch {
+            window.location.href = parsed.redirectUrl
+          }
+          return // don't setCheckedStorage — we're navigating away, nothing left to render
+        }
+        setDisqualifyMessage(parsed.message ?? DEFAULT_DISQUALIFY_MESSAGE)
+      } catch {
+        // Pre-upgrade data from before this was stored as JSON — it's a plain message string.
+        setDisqualifyMessage(stored)
+      }
+    }
     setCheckedStorage(true)
   }, [quizId])
 
@@ -118,14 +137,16 @@ export default function QuizRenderer({
   const currentStep = steps[stepIndex]
   const progressPct = ((stepIndex + 1) / steps.length) * 100
 
-  function persistDisqualify(message: string) {
-    localStorage.setItem(disqualifyStorageKey(quizId), message)
-    setCookie(disqualifyCookieName(quizId), message)
-    setDisqualifyMessage(message)
+  function persistDisqualify(data: { mode: 'message' | 'redirect'; message?: string; redirectUrl?: string }) {
+    const serialized = JSON.stringify(data)
+    localStorage.setItem(disqualifyStorageKey(quizId), serialized)
+    setCookie(disqualifyCookieName(quizId), serialized)
+    if (data.mode === 'message') setDisqualifyMessage(data.message ?? DEFAULT_DISQUALIFY_MESSAGE)
   }
 
   function handleDisqualifyResult(result: NonNullable<ReturnType<typeof evaluateDisqualify>>): boolean {
     if (result.mode === 'redirect') {
+      persistDisqualify({ mode: 'redirect', redirectUrl: result.redirectUrl })
       try {
         window.top!.location.href = result.redirectUrl
       } catch {
@@ -133,7 +154,7 @@ export default function QuizRenderer({
       }
       return true
     }
-    persistDisqualify(result.message)
+    persistDisqualify({ mode: 'message', message: result.message })
     return true
   }
 
@@ -215,13 +236,14 @@ export default function QuizRenderer({
       }
       if (data.disqualified) {
         if (data.disqualifyMode === 'redirect' && data.redirectUrl) {
+          persistDisqualify({ mode: 'redirect', redirectUrl: data.redirectUrl })
           try {
             window.top!.location.href = data.redirectUrl
           } catch {
             window.location.href = data.redirectUrl
           }
         } else {
-          persistDisqualify(data.message)
+          persistDisqualify({ mode: 'message', message: data.message })
         }
       } else if (schema.endScreen.redirectUrl) {
         // window.top (not window) — navigates the whole browser tab, not just this iframe.

@@ -138,7 +138,7 @@ legend {
 }
 
 .quiz-option:hover {
-  background: var(--quiz-field-bg, color-mix(in srgb, var(--quiz-primary, #c86b4a) 16%, #f7f0e6));
+  background: var(--quiz-hover-bg, color-mix(in srgb, var(--quiz-primary, #c86b4a) 16%, #f7f0e6));
 }
 
 .quiz-option:active {

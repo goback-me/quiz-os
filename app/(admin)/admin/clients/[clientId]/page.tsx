@@ -183,6 +183,8 @@ async function updateBranding(formData: FormData) {
         fieldBorderWidth: (formData.get('fieldBorderWidth') as string) || undefined,
         buttonBorderColor: (formData.get('buttonBorderColor') as string) || undefined,
         buttonBorderWidth: (formData.get('buttonBorderWidth') as string) || undefined,
+        hoverColor: (formData.get('hoverColor') as string) || undefined,
+        radius: (formData.get('radius') as string) || undefined,
       },
     },
   })
