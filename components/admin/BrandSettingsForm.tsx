@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { ImageIcon } from 'lucide-react'
+import type { ClientTheme } from '@/lib/theme'
 
 const PRIMARY_PRESETS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#000000']
 const SECONDARY_PRESETS = ['#F3F4F6', '#E5E7EB', '#D1D5DB']
@@ -45,24 +46,7 @@ export default function BrandSettingsForm({
   updateBranding,
 }: {
   clientId: string
-  initialTheme: {
-    primary: string
-    secondary: string
-    font?: string
-    logoUrl?: string
-    pageBackground?: string
-    cardBackground?: string
-    fieldBackground?: string
-    buttonColor?: string
-    textColor?: string
-    fontSize?: string
-    fieldBorderColor?: string
-    fieldBorderWidth?: string
-    buttonBorderColor?: string
-    buttonBorderWidth?: string
-    hoverColor?: string
-    radius?: string
-  }
+  initialTheme: ClientTheme
   updateBranding: (formData: FormData) => Promise<void>
 }) {
   const [primary, setPrimary] = useState(initialTheme.primary)

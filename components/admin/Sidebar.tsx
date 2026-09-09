@@ -28,9 +28,6 @@ export default function Sidebar() {
       </div>
 
       <div className="mt-auto space-y-1">
-        <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 text-black hover:bg-gray-100 transition-colors text-sm font-medium mb-3">
-          Help Center
-        </button>
         <div className="border-t border-gray-200 pt-3 space-y-1">
           <Link
             href="/admin/settings"

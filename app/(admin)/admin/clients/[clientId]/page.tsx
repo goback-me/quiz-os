@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { encrypt } from '@/lib/crypto'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Edit } from 'lucide-react'
@@ -8,6 +7,10 @@ import WebhookField from '@/components/admin/WebhookField'
 import QuizStatusToggle from '@/components/admin/QuizStatusToggle'
 import CopyLinkButton from '@/components/admin/CopyLinkButton'
 import EmbedCodeButton from '@/components/admin/EmbedCodeButton'
+import SlugField from '@/components/admin/SlugField'
+import ConfirmButton from '@/components/admin/ConfirmButton'
+import type { ClientTheme } from '@/lib/theme'
+import { getPublicSiteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,8 +32,8 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
   })
   const activeQuizzes = client.quizzes.filter((q) => q.status === 'live').length
 
-  const theme = client.theme as { primary: string; secondary: string; font?: string; logoUrl?: string }
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/+$/, '') // strip trailing slash(es) — a trailing slash in the env var plus our own template literal was producing double slashes in every generated link
+  const theme = client.theme as ClientTheme
+  const siteUrl = getPublicSiteUrl()
 
   return (
     <div>
@@ -39,21 +42,7 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
         <p className="text-sm text-gray-500 mt-1">{client.description ?? 'Client Details & Configuration'}</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6 flex items-center gap-3">
-        <form action={updateSlug} className="flex items-center gap-2 flex-1">
-          <input type="hidden" name="clientId" value={client.id} />
-          <span className="text-xs text-gray-500 shrink-0">{siteUrl}/q/</span>
-          <input
-            name="slug"
-            defaultValue={client.slug}
-            className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-mono focus:border-black outline-none"
-            placeholder="client-slug (letters, numbers, hyphens only)"
-          />
-          <button type="submit" className="bg-black text-white px-3 py-1.5 rounded-lg text-xs font-medium shrink-0">
-            Save slug
-          </button>
-        </form>
-      </div>
+      <SlugField clientId={client.id} initialSlug={client.slug} siteUrl={siteUrl} updateSlug={updateSlug} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-6">
@@ -111,6 +100,11 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
                             <EmbedCodeButton
                               embedCode={`<div data-quiz="${client.slug}/${quiz.slug}"></div>\n<script src="${siteUrl}/embed.js" defer></script>`}
                             />
+                            <ConfirmButton
+                              label="Delete"
+                              message={`Delete "${quiz.name}" permanently? Its submissions are deleted too.`}
+                              action={deleteQuiz.bind(null, quiz.id, client.id)}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -138,26 +132,39 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-xl border border-red-100 shadow-sm p-6">
+            <h3 className="text-xs font-medium text-red-600 mb-1 uppercase tracking-wide">Danger Zone</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Deletes this client, all its quizzes, and all their submissions. Can't be undone.
+            </p>
+            <ConfirmButton
+              label={`Delete ${client.name}`}
+              message={`Delete "${client.name}" and every quiz + submission under it permanently?`}
+              action={deleteClient.bind(null, client.id)}
+              className="w-full justify-center bg-white border border-red-200 text-red-600 py-1.5 px-3 rounded-lg text-xs font-medium hover:bg-red-50 transition-colors flex items-center gap-1"
+            />
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-async function updateSlug(formData: FormData) {
+async function updateSlug(clientId: string, rawSlug: string): Promise<{ ok: boolean; error?: string }> {
   'use server'
   const { prisma } = await import('@/lib/prisma')
   const { slugify } = await import('@/lib/slugify')
 
-  const clientId = String(formData.get('clientId'))
-  const clean = slugify(String(formData.get('slug')))
-  if (!clean) return // don't save an empty slug
+  const clean = slugify(rawSlug)
+  if (!clean) return { ok: false, error: 'Slug cannot be empty.' }
 
   try {
     await prisma.client.update({ where: { id: clientId }, data: { slug: clean } })
-  } catch (err) {
-    // Most likely cause: another client already has this slug (unique constraint).
-    console.error('Failed to update slug — likely a duplicate:', err)
+    return { ok: true }
+  } catch (err: any) {
+    if (err?.code === 'P2002') return { ok: false, error: `"${clean}" is already taken by another client.` }
+    return { ok: false, error: 'Could not save — try again.' }
   }
 }
 
@@ -249,4 +256,20 @@ async function createQuiz(formData: FormData) {
   })
 
   redirect(`/admin/clients/${clientId}/quizzes/${quiz.id}`)
+}
+
+async function deleteQuiz(quizId: string, clientId: string) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { revalidatePath } = await import('next/cache')
+  await prisma.quiz.delete({ where: { id: quizId } }) // Submissions cascade-delete (see prisma/schema.prisma)
+  revalidatePath(`/admin/clients/${clientId}`)
+}
+
+async function deleteClient(clientId: string) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { redirect } = await import('next/navigation')
+  await prisma.client.delete({ where: { id: clientId } }) // Quizzes + submissions cascade-delete
+  redirect('/admin/clients')
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Answers,
   QuizSchema,
+  QuizOption,
   evaluateDisqualify,
   disqualifyStorageKey,
   disqualifyCookieName,
@@ -38,19 +39,26 @@ export default function QuizRenderer({
   quizId,
   schema,
   logoUrl,
+  preview = false,
+  initialStepIndex = 0,
 }: {
   quizId: string
   schema: QuizSchema
   logoUrl?: string
+  /** True when rendered inside the admin builder's live preview — skips real submissions,
+   *  localStorage/cookie disqualify persistence, and top-level navigation, none of which should
+   *  ever fire just because someone is editing a quiz. */
+  preview?: boolean
+  initialStepIndex?: number
 }) {
-  const [stepIndex, setStepIndex] = useState(0)
+  const [stepIndex, setStepIndex] = useState(initialStepIndex)
   const [answers, setAnswers] = useState<Answers>({})
   const [contact, setContact] = useState<Record<string, string>>({})
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [disqualifyMessage, setDisqualifyMessage] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [checkedStorage, setCheckedStorage] = useState(false)
+  const [checkedStorage, setCheckedStorage] = useState(preview)
   const [capturedParams, setCapturedParams] = useState<Record<string, string>>({})
   const [isEmbedded, setIsEmbedded] = useState(false)
 
@@ -125,6 +133,7 @@ export default function QuizRenderer({
   // modes: a stored "message" shows the block screen again; a stored "redirect" re-navigates
   // immediately, since the visitor shouldn't be able to get back to the quiz by hitting back.
   useEffect(() => {
+    if (preview) return
     const stored =
       localStorage.getItem(disqualifyStorageKey(quizId)) ?? getCookie(disqualifyCookieName(quizId))
     if (stored) {
@@ -145,36 +154,46 @@ export default function QuizRenderer({
       }
     }
     setCheckedStorage(true)
-  }, [quizId])
+  }, [quizId, preview])
 
   const steps = schema.steps
   const currentStep = steps[stepIndex]
   const progressPct = ((stepIndex + 1) / steps.length) * 100
 
-  function persistDisqualify(data: { mode: 'message' | 'redirect'; message?: string; redirectUrl?: string }) {
+  // Shared by the instant client-side check (selectOption/continueMultiSelect) and the
+  // server-confirmed result from handleSubmit — both hit the same two outcome modes. In preview
+  // mode this only ever updates local state: no localStorage/cookie writes (would leak into the
+  // real public quiz's disqualify state for this quizId) and no top-level navigation away from
+  // the builder.
+  function applyDisqualifyOutcome(data: { mode: 'message' | 'redirect'; message?: string; redirectUrl?: string }) {
+    if (preview) {
+      setDisqualifyMessage(
+        data.mode === 'redirect' ? `Redirects visitor to: ${data.redirectUrl}` : data.message ?? DEFAULT_DISQUALIFY_MESSAGE
+      )
+      return
+    }
     const serialized = JSON.stringify(data)
     localStorage.setItem(disqualifyStorageKey(quizId), serialized)
     setCookie(disqualifyCookieName(quizId), serialized)
-    if (data.mode === 'message') setDisqualifyMessage(data.message ?? DEFAULT_DISQUALIFY_MESSAGE)
-  }
-
-  function handleDisqualifyResult(result: NonNullable<ReturnType<typeof evaluateDisqualify>>): boolean {
-    if (result.mode === 'redirect') {
-      persistDisqualify({ mode: 'redirect', redirectUrl: result.redirectUrl })
+    if (data.mode === 'redirect') {
       try {
-        window.top!.location.href = result.redirectUrl
+        window.top!.location.href = data.redirectUrl!
       } catch {
-        window.location.href = result.redirectUrl
+        window.location.href = data.redirectUrl!
       }
-      return true
+      return
     }
-    persistDisqualify({ mode: 'message', message: result.message })
-    return true
+    setDisqualifyMessage(data.message ?? DEFAULT_DISQUALIFY_MESSAGE)
   }
 
   function goNext() {
     setFieldError(null)
     if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1)
+  }
+
+  function goBack() {
+    setFieldError(null)
+    if (stepIndex > 0) setStepIndex(stepIndex - 1)
   }
 
   function selectOption(fieldId: string, value: string) {
@@ -184,7 +203,7 @@ export default function QuizRenderer({
     // Instant client-side check for UX — the real enforcement happens again server-side on submit.
     const result = evaluateDisqualify(schema, nextAnswers)
     if (result) {
-      handleDisqualifyResult(result)
+      applyDisqualifyOutcome(result)
       return
     }
     goNext()
@@ -205,7 +224,7 @@ export default function QuizRenderer({
     }
     const result = evaluateDisqualify(schema, answers)
     if (result) {
-      handleDisqualifyResult(result)
+      applyDisqualifyOutcome(result)
       return
     }
     goNext()
@@ -233,6 +252,16 @@ export default function QuizRenderer({
       }
     }
     setFieldError(null)
+
+    if (preview) {
+      // No network call in preview — never send a fake lead to the client's real webhook.
+      // Disqualify is re-checked locally against the same logic the server would run.
+      const result = evaluateDisqualify(schema, { ...answers, ...contact })
+      if (result) applyDisqualifyOutcome(result)
+      else setSubmitted(true)
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch(`/api/submit/${quizId}`, {
@@ -249,16 +278,11 @@ export default function QuizRenderer({
         return
       }
       if (data.disqualified) {
-        if (data.disqualifyMode === 'redirect' && data.redirectUrl) {
-          persistDisqualify({ mode: 'redirect', redirectUrl: data.redirectUrl })
-          try {
-            window.top!.location.href = data.redirectUrl
-          } catch {
-            window.location.href = data.redirectUrl
-          }
-        } else {
-          persistDisqualify({ mode: 'message', message: data.message })
-        }
+        applyDisqualifyOutcome(
+          data.disqualifyMode === 'redirect' && data.redirectUrl
+            ? { mode: 'redirect', redirectUrl: data.redirectUrl }
+            : { mode: 'message', message: data.message }
+        )
       } else if (schema.endScreen.redirectUrl) {
         // window.top (not window) — navigates the whole browser tab, not just this iframe.
         // Falls back to window.location if top-navigation is ever blocked (rare, only happens
@@ -321,9 +345,10 @@ export default function QuizRenderer({
                 className="quiz-option"
                 onClick={() => selectOption(currentStep.id, opt.value)}
               >
-                {opt.label}
+                <OptionContent option={opt} />
               </button>
             ))}
+            <BackButton visible={stepIndex > 0} onClick={goBack} />
           </fieldset>
         )}
 
@@ -341,7 +366,7 @@ export default function QuizRenderer({
                   onClick={() => toggleMultiOption(currentStep.id, opt.value)}
                 >
                   <span className="quiz-checkbox">{selected ? '✓' : ''}</span>
-                  {opt.label}
+                  <OptionContent option={opt} />
                 </button>
               )
             })}
@@ -349,6 +374,7 @@ export default function QuizRenderer({
             <button type="button" className="quiz-submit" onClick={continueMultiSelect}>
               {currentStep.buttonText || 'Continue'}
             </button>
+            <BackButton visible={stepIndex > 0} onClick={goBack} />
           </fieldset>
         )}
 
@@ -368,6 +394,7 @@ export default function QuizRenderer({
             <button type="button" className="quiz-submit" onClick={continueTextInput}>
               {currentStep.buttonText || 'Continue'}
             </button>
+            <BackButton visible={stepIndex > 0} onClick={goBack} />
           </div>
         )}
 
@@ -389,12 +416,34 @@ export default function QuizRenderer({
             <button type="button" className="quiz-submit" disabled={submitting} onClick={handleSubmit}>
               {submitting ? 'Sending…' : currentStep.buttonText || 'Submit'}
             </button>
+            <BackButton visible={stepIndex > 0} onClick={goBack} />
           </div>
         )}
       </div>
 
       {schema.trustLine && <TrustLine text={schema.trustLine} />}
     </div>
+  )
+}
+
+function OptionContent({ option }: { option: QuizOption }) {
+  return (
+    <span className="quiz-option-body">
+      {option.icon && <span className="quiz-option-icon">{option.icon}</span>}
+      <span className="quiz-option-text">
+        <span className="quiz-option-label">{option.label}</span>
+        {option.description && <span className="quiz-option-description">{option.description}</span>}
+      </span>
+    </span>
+  )
+}
+
+function BackButton({ visible, onClick }: { visible: boolean; onClick: () => void }) {
+  if (!visible) return null
+  return (
+    <button type="button" className="quiz-back" onClick={onClick}>
+      ← Back
+    </button>
   )
 }
 

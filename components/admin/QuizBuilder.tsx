@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import {
   GripVertical,
   Plus,
@@ -10,8 +11,11 @@ import {
   Monitor,
   Trash2,
 } from 'lucide-react'
-import type { QuizSchema, QuizStep } from '@/lib/quiz-logic'
+import type { QuizSchema, QuizStep, QuizOption } from '@/lib/quiz-logic'
 import { DEFAULT_DISQUALIFY_MESSAGE } from '@/lib/quiz-logic'
+import { themeToCssVars, type ClientTheme } from '@/lib/theme'
+import QuizRenderer from '@/components/QuizRenderer'
+import ConfirmButton from '@/components/admin/ConfirmButton'
 
 let idCounter = 0
 function newId(prefix: string) {
@@ -21,18 +25,22 @@ function newId(prefix: string) {
 
 export default function QuizBuilder({
   quizId,
+  clientId,
   initialSchema,
   initialStatus,
   theme,
   publicUrl,
   saveQuiz,
+  deleteQuiz,
 }: {
   quizId: string
+  clientId: string
   initialSchema: QuizSchema
   initialStatus: string
-  theme: { primary: string; secondary: string; pageBackground?: string }
+  theme: ClientTheme
   publicUrl: string
   saveQuiz: (formData: FormData) => Promise<void>
+  deleteQuiz: () => Promise<void>
 }) {
   const [schema, setSchema] = useState<QuizSchema>(initialSchema)
   const [status, setStatus] = useState(initialStatus)
@@ -50,6 +58,15 @@ export default function QuizBuilder({
       ...prev,
       steps: prev.steps.map((s, i) => (i === index ? updater(s) : s)),
     }))
+  }
+
+  function updateOption(optIndex: number, patch: Partial<QuizOption>) {
+    updateStep(selectedIndex, (s) => {
+      if (!('options' in s)) return s
+      const nextOptions = [...s.options]
+      nextOptions[optIndex] = { ...nextOptions[optIndex], ...patch }
+      return { ...s, options: nextOptions }
+    })
   }
 
   function addStep() {
@@ -95,13 +112,18 @@ export default function QuizBuilder({
       {/* Builder top bar */}
       <div className="flex items-center justify-between px-8 py-3 border-b border-gray-200 bg-white shrink-0">
         <div className="flex items-center gap-3">
+          <Link href={`/admin/clients/${clientId}`} className="text-gray-400 hover:text-black text-sm shrink-0">
+            ← Back
+          </Link>
           <input
             value={schema.headline}
             onChange={(e) => setSchema((p) => ({ ...p, headline: e.target.value }))}
             className="font-semibold text-black text-sm border border-transparent hover:border-gray-200 focus:border-black rounded px-2 py-1 outline-none"
             placeholder="Quiz headline"
           />
-          <span className="text-xs text-gray-400">{publicUrl}</span>
+          <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs text-gray-400 hover:text-black hover:underline">
+            {publicUrl}
+          </a>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -113,6 +135,11 @@ export default function QuizBuilder({
             <option value="live">Live</option>
             <option value="paused">Paused</option>
           </select>
+          <ConfirmButton
+            label="Delete"
+            message="Delete this quiz permanently? All its submissions are deleted too. This can't be undone."
+            action={deleteQuiz}
+          />
           <button
             onClick={handleSave}
             disabled={pending}
@@ -294,53 +321,55 @@ export default function QuizBuilder({
                           {currentStep.options.map((opt, optIndex) => (
                             <div
                               key={optIndex}
-                              className={`flex items-center gap-2 p-1.5 rounded-lg ${opt.disqualify ? 'bg-red-50' : ''}`}
+                              className={`p-1.5 rounded-lg space-y-1.5 ${opt.disqualify ? 'bg-red-50' : ''}`}
                             >
-                              <GripVertical size={16} className="text-gray-300 shrink-0" />
-                              <input
-                                value={opt.label}
-                                onChange={(e) =>
-                                  updateStep(selectedIndex, (s) => {
-                                    if (!('options' in s)) return s
-                                    const nextOptions = [...s.options]
-                                    nextOptions[optIndex] = {
-                                      ...nextOptions[optIndex],
+                              <div className="flex items-center gap-2">
+                                <GripVertical size={16} className="text-gray-300 shrink-0" />
+                                <input
+                                  value={opt.icon ?? ''}
+                                  onChange={(e) => updateOption(optIndex, { icon: e.target.value || undefined })}
+                                  placeholder="🙂"
+                                  title="Optional emoji — paste one, leave blank for none"
+                                  className="w-10 p-1.5 bg-white border border-gray-200 rounded text-sm text-center focus:border-black outline-none shrink-0"
+                                />
+                                <input
+                                  value={opt.label}
+                                  onChange={(e) =>
+                                    updateOption(optIndex, {
                                       label: e.target.value,
                                       value: e.target.value.toLowerCase().replace(/\s+/g, '_'),
-                                    }
-                                    return { ...s, options: nextOptions }
-                                  })
-                                }
-                                className="flex-1 p-1.5 bg-white border border-gray-200 rounded text-sm focus:border-black outline-none"
-                              />
-                              <label
-                                className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none"
-                                title="Selecting this option disqualifies the visitor"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={opt.disqualify ?? false}
-                                  onChange={(e) =>
-                                    updateStep(selectedIndex, (s) => {
-                                      if (!('options' in s)) return s
-                                      const nextOptions = [...s.options]
-                                      nextOptions[optIndex] = { ...nextOptions[optIndex], disqualify: e.target.checked }
-                                      return { ...s, options: nextOptions }
                                     })
                                   }
+                                  className="flex-1 p-1.5 bg-white border border-gray-200 rounded text-sm focus:border-black outline-none"
                                 />
-                                <Ban size={13} className={opt.disqualify ? 'text-red-500' : 'text-gray-300'} />
-                              </label>
-                              <button
-                                onClick={() =>
-                                  updateStep(selectedIndex, (s) =>
-                                    !('options' in s) ? s : { ...s, options: s.options.filter((_, i) => i !== optIndex) }
-                                  )
-                                }
-                                className="text-gray-400 hover:text-red-500 shrink-0"
-                              >
-                                <X size={16} />
-                              </button>
+                                <label
+                                  className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none"
+                                  title="Selecting this option disqualifies the visitor"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={opt.disqualify ?? false}
+                                    onChange={(e) => updateOption(optIndex, { disqualify: e.target.checked })}
+                                  />
+                                  <Ban size={13} className={opt.disqualify ? 'text-red-500' : 'text-gray-300'} />
+                                </label>
+                                <button
+                                  onClick={() =>
+                                    updateStep(selectedIndex, (s) =>
+                                      !('options' in s) ? s : { ...s, options: s.options.filter((_, i) => i !== optIndex) }
+                                    )
+                                  }
+                                  className="text-gray-400 hover:text-red-500 shrink-0"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <input
+                                value={opt.description ?? ''}
+                                onChange={(e) => updateOption(optIndex, { description: e.target.value || undefined })}
+                                placeholder="Optional subtitle, e.g. I'm renovating a bathroom"
+                                className="ml-[60px] p-1.5 bg-white border border-gray-200 rounded text-xs text-gray-600 focus:border-black outline-none"
+                              />
                             </div>
                           ))}
                           <button
@@ -636,7 +665,10 @@ export default function QuizBuilder({
           </div>
         </section>
 
-        {/* Right: live preview */}
+        {/* Right: live preview — the actual QuizRenderer/CSS a visitor gets, not a lookalike,
+            so it can never drift from what's really live. Remounts (via key) when you switch
+            which step you're editing, jumping the preview straight to that step; otherwise it
+            just re-renders live as you type, same as any other controlled input. */}
         <aside className="w-96 bg-white flex flex-col shrink-0 border-l border-gray-200">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-sm font-semibold flex items-center gap-1.5">Live Preview</h2>
@@ -649,120 +681,21 @@ export default function QuizBuilder({
               </button>
             </div>
           </div>
-          <div
-            className="flex-1 p-6 flex items-center justify-center overflow-y-auto"
-            style={{ background: theme.pageBackground ?? '#fdf3e7' }}
-          >
-            <div className={previewDevice === 'mobile' ? 'w-[260px]' : 'w-[380px]'}>
-              {schema.showHeadline !== false && (
-                <h2
-                  className="text-center font-bold mb-4"
-                  style={{ color: theme.secondary, fontSize: previewDevice === 'mobile' ? 16 : 20 }}
-                >
-                  {schema.headline}
-                </h2>
-              )}
-
-              <div className="bg-white rounded-2xl shadow-sm p-5">
-                <div
-                  className="h-2 rounded-full mb-4 overflow-hidden"
-                  style={{ background: theme.primary + '1f' }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${((selectedIndex + 1) / steps.length) * 100}%`,
-                      background: `linear-gradient(90deg, ${theme.primary}, ${theme.primary}66)`,
-                    }}
-                  />
-                </div>
-
-                {currentStep && currentStep.type !== 'contact_fields' && (
-                  <p
-                    className="text-[11px] font-bold uppercase tracking-wide mb-2"
-                    style={{ color: theme.primary }}
-                  >
-                    Question {selectedIndex + 1}
-                  </p>
-                )}
-
-                {currentStep && (currentStep.type === 'single_select' || currentStep.type === 'multi_select') && (
-                  <>
-                    <h3 className="font-bold text-sm mb-4" style={{ color: theme.secondary }}>
-                      {currentStep.question}
-                    </h3>
-                    <div className="space-y-2">
-                      {currentStep.options.map((opt) => (
-                        <div
-                          key={opt.value}
-                          className="w-full p-3 rounded-xl text-sm flex items-center gap-2"
-                          style={{ background: theme.primary + '14', color: theme.secondary }}
-                        >
-                          {currentStep.type === 'multi_select' && (
-                            <span
-                              className="w-4 h-4 rounded border inline-block shrink-0"
-                              style={{ borderColor: theme.primary + '66' }}
-                            />
-                          )}
-                          {opt.label}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {currentStep && currentStep.type === 'text_input' && (
-                  <>
-                    <h3 className="font-bold text-sm mb-4" style={{ color: theme.secondary }}>
-                      {currentStep.question}
-                    </h3>
-                    <div className="p-3 rounded-xl text-sm text-gray-400 border border-gray-200 mb-2 bg-[#fbf7f0]">
-                      {currentStep.inputType === 'email'
-                        ? 'you@example.com'
-                        : currentStep.inputType === 'tel'
-                        ? 'Phone number'
-                        : 'Type here...'}
-                    </div>
-                    <div
-                      className="w-full p-3 rounded-xl text-sm font-medium text-white text-center"
-                      style={{ backgroundColor: theme.primary }}
-                    >
-                      Continue
-                    </div>
-                  </>
-                )}
-
-                {currentStep && currentStep.type === 'contact_fields' && (
-                  <>
-                    <h3 className="font-bold text-sm mb-4" style={{ color: theme.secondary }}>
-                      Almost done — where should we send this?
-                    </h3>
-                    <div className="space-y-2">
-                      {currentStep.fields.map((f) => (
-                        <div
-                          key={f.name}
-                          className="p-3 rounded-xl text-sm text-gray-400 border border-gray-200 bg-[#fbf7f0]"
-                        >
-                          {f.label}
-                        </div>
-                      ))}
-                      <div
-                        className="w-full p-3 rounded-xl text-sm font-medium text-white text-center mt-2"
-                        style={{ backgroundColor: theme.primary }}
-                      >
-                        Submit
-                      </div>
-                    </div>
-                  </>
-                )}
+          <div className="flex-1 overflow-y-auto">
+            <div
+              className="quiz-page"
+              style={{ ...themeToCssVars(theme), minHeight: 0, justifyContent: 'flex-start' }}
+            >
+              <div className={previewDevice === 'mobile' ? 'w-[260px]' : 'w-[380px]'}>
+                <QuizRenderer
+                  key={selectedIndex}
+                  quizId={quizId}
+                  schema={schema}
+                  logoUrl={theme.logoUrl}
+                  preview
+                  initialStepIndex={selectedIndex}
+                />
               </div>
-
-              {schema.trustLine && (
-                <p className="text-center text-xs mt-4" style={{ color: theme.secondary }}>
-                  <strong style={{ color: theme.primary }}>{schema.trustLine.split(',')[0]}</strong>
-                  {schema.trustLine.includes(',') ? ',' + schema.trustLine.split(',').slice(1).join(',') : ''}
-                </p>
-              )}
             </div>
           </div>
         </aside>

@@ -211,6 +211,60 @@ legend {
   gap: 12px;
 }
 
+.quiz-option-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.quiz-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: calc(var(--quiz-radius, 14px) * 0.55);
+  background: color-mix(in srgb, var(--quiz-primary, #c86b4a) 14%, #fff);
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.quiz-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quiz-option-label {
+  font-weight: 600;
+}
+
+.quiz-option-description {
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0.65;
+}
+
+.quiz-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 6px 2px;
+  background: none;
+  border: none;
+  color: var(--quiz-text, var(--quiz-secondary, #666));
+  font-size: 0.9em;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.quiz-back:hover {
+  opacity: 1;
+}
+
 .quiz-checkbox {
   display: inline-flex;
   align-items: center;

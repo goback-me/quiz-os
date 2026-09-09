@@ -5,6 +5,10 @@
 export type QuizOption = {
   label: string
   value: string
+  /** Optional subtitle shown under the label, e.g. "I'm renovating a bathroom". Blank hides it. */
+  description?: string
+  /** Optional emoji/icon shown in a small box before the label, e.g. "✅". Blank hides it. */
+  icon?: string
   /** When true, selecting this specific option disqualifies the visitor. Lives directly on the
    *  option — no separate rule list to keep in sync, no dropdown to pick "which question". */
   disqualify?: boolean
