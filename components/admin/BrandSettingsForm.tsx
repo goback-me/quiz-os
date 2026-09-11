@@ -117,6 +117,7 @@ export default function BrandSettingsForm({
   const [buttonBorderColor, setButtonBorderColor] = useState(initialTheme.buttonBorderColor ?? '')
   const [buttonBorderWidth, setButtonBorderWidth] = useState(initialTheme.buttonBorderWidth ?? '0')
   const [hoverColor, setHoverColor] = useState(initialTheme.hoverColor ?? '')
+  const [hoverTextColor, setHoverTextColor] = useState(initialTheme.hoverTextColor ?? '')
   const [radius, setRadius] = useState(initialTheme.radius ?? '14')
   const [progressColor, setProgressColor] = useState(initialTheme.progressColor ?? '')
   const [progressTrackColor, setProgressTrackColor] = useState(initialTheme.progressTrackColor ?? '')
@@ -141,6 +142,7 @@ export default function BrandSettingsForm({
     formData.set('buttonBorderColor', buttonBorderColor)
     formData.set('buttonBorderWidth', buttonBorderWidth)
     formData.set('hoverColor', hoverColor)
+    formData.set('hoverTextColor', hoverTextColor)
     formData.set('radius', radius)
     formData.set('progressColor', progressColor)
     formData.set('progressTrackColor', progressTrackColor)
@@ -242,11 +244,18 @@ export default function BrandSettingsForm({
                 onChange={setProgressTrackColor}
               />
               <ColorField
-                label="Field Hover"
+                label="Field Hover Background"
                 hint="Shown while hovering an option"
                 value={hoverColor}
                 fallback={primary}
                 onChange={setHoverColor}
+              />
+              <ColorField
+                label="Field Hover Text"
+                hint="Text color while hovering an option"
+                value={hoverTextColor}
+                fallback={textColor || secondary}
+                onChange={setHoverTextColor}
               />
             </div>
           </Section>

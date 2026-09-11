@@ -23,6 +23,7 @@ export type ClientTheme = {
   buttonBorderColor?: string
   buttonBorderWidth?: string
   hoverColor?: string
+  hoverTextColor?: string
 }
 
 // Turns a client's theme into the CSS custom properties `.quiz-page` and its children read
@@ -51,6 +52,7 @@ export function themeToCssVars(theme: ClientTheme): CSSProperties {
       ? { '--quiz-button-border': `${theme.buttonBorderWidth}px solid ${theme.buttonBorderColor || '#000'}` }
       : {}),
     ...(theme.hoverColor ? { '--quiz-hover-bg': theme.hoverColor } : {}),
+    ...(theme.hoverTextColor ? { '--quiz-hover-text': theme.hoverTextColor } : {}),
   } as CSSProperties
 }
 

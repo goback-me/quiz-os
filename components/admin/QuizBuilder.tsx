@@ -774,10 +774,16 @@ export default function QuizBuilder({
                     onChange={(v) => updateThemeOverride({ textColor: v })}
                   />
                   <OverrideColorField
-                    label="Field Hover Color"
+                    label="Field Hover Background"
                     value={schema.themeOverride?.hoverColor ?? ''}
                     fallback={theme.hoverColor || theme.primary}
                     onChange={(v) => updateThemeOverride({ hoverColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Field Hover Text"
+                    value={schema.themeOverride?.hoverTextColor ?? ''}
+                    fallback={theme.hoverTextColor || theme.textColor || theme.secondary}
+                    onChange={(v) => updateThemeOverride({ hoverTextColor: v })}
                   />
                   <OverrideColorField
                     label="Error Text"
