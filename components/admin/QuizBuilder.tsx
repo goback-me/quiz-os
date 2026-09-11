@@ -520,6 +520,24 @@ export default function QuizBuilder({
                             <option value="email">Email</option>
                             <option value="tel">Phone</option>
                           </select>
+                          <label
+                            className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none text-gray-600"
+                            title="Require an answer before the visitor can submit"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.required ?? false}
+                              onChange={(e) =>
+                                updateStep(selectedIndex, (s) => {
+                                  if (s.type !== 'contact_fields') return s
+                                  const next = [...s.fields]
+                                  next[fieldIndex] = { ...next[fieldIndex], required: e.target.checked }
+                                  return { ...s, fields: next }
+                                })
+                              }
+                            />
+                            Required
+                          </label>
                           <button
                             onClick={() =>
                               updateStep(selectedIndex, (s) =>
@@ -539,7 +557,13 @@ export default function QuizBuilder({
                           updateStep(selectedIndex, (s) =>
                             s.type !== 'contact_fields'
                               ? s
-                              : { ...s, fields: [...s.fields, { name: `field_${s.fields.length}`, label: 'New field', type: 'text' }] }
+                              : {
+                                  ...s,
+                                  fields: [
+                                    ...s.fields,
+                                    { name: `field_${s.fields.length}`, label: 'New field', type: 'text', required: true },
+                                  ],
+                                }
                           )
                         }
                         className="text-black text-sm hover:underline flex items-center gap-1 mt-1"
