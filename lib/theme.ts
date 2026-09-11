@@ -9,6 +9,9 @@ export type ClientTheme = {
   radius?: string
   logoUrl?: string
   progressColor?: string
+  progressTrackColor?: string
+  questionColor?: string
+  errorColor?: string
   pageBackground?: string
   cardBackground?: string
   fieldBackground?: string
@@ -32,6 +35,9 @@ export function themeToCssVars(theme: ClientTheme): CSSProperties {
     '--quiz-radius': theme.radius ? `${theme.radius}px` : '20px',
     '--quiz-font': theme.font ?? "'General Sans', Inter, sans-serif",
     ...(theme.progressColor ? { '--quiz-progress': theme.progressColor } : {}),
+    ...(theme.progressTrackColor ? { '--quiz-progress-track': theme.progressTrackColor } : {}),
+    ...(theme.questionColor ? { '--quiz-question-color': theme.questionColor } : {}),
+    ...(theme.errorColor ? { '--quiz-error-color': theme.errorColor } : {}),
     ...(theme.pageBackground ? { '--quiz-page-bg': theme.pageBackground } : {}),
     ...(theme.cardBackground ? { '--quiz-card-bg': theme.cardBackground } : {}),
     ...(theme.fieldBackground ? { '--quiz-field-bg': theme.fieldBackground } : {}),

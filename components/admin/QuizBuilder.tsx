@@ -702,10 +702,22 @@ export default function QuizBuilder({
                     onChange={(v) => updateThemeOverride({ secondary: v })}
                   />
                   <OverrideColorField
+                    label="Question Heading"
+                    value={schema.themeOverride?.questionColor ?? ''}
+                    fallback={theme.questionColor || theme.textColor || theme.secondary}
+                    onChange={(v) => updateThemeOverride({ questionColor: v })}
+                  />
+                  <OverrideColorField
                     label="Progress Bar"
                     value={schema.themeOverride?.progressColor ?? ''}
                     fallback={theme.progressColor || theme.primary}
                     onChange={(v) => updateThemeOverride({ progressColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Progress Bar Background"
+                    value={schema.themeOverride?.progressTrackColor ?? ''}
+                    fallback={theme.progressTrackColor || '#f0e8db'}
+                    onChange={(v) => updateThemeOverride({ progressTrackColor: v })}
                   />
                   <OverrideColorField
                     label="Page Background"
@@ -742,6 +754,12 @@ export default function QuizBuilder({
                     value={schema.themeOverride?.hoverColor ?? ''}
                     fallback={theme.hoverColor || theme.primary}
                     onChange={(v) => updateThemeOverride({ hoverColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Error Text"
+                    value={schema.themeOverride?.errorColor ?? ''}
+                    fallback={theme.errorColor || '#c0392b'}
+                    onChange={(v) => updateThemeOverride({ errorColor: v })}
                   />
                 </div>
 

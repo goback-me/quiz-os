@@ -54,6 +54,7 @@ export default function QuizRenderer({
   const [stepIndex, setStepIndex] = useState(initialStepIndex)
   const [answers, setAnswers] = useState<Answers>({})
   const [contact, setContact] = useState<Record<string, string>>({})
+  const [contactErrors, setContactErrors] = useState<Record<string, string>>({})
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [disqualifyMessage, setDisqualifyMessage] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -241,15 +242,25 @@ export default function QuizRenderer({
     goNext()
   }
 
+  function validateContactField(field: { name: string; type: 'text' | 'email' | 'tel'; required?: boolean }, value: string) {
+    const error = validateFieldValue(field.type, value, field.required)
+    setContactErrors((prev) => {
+      const next = { ...prev }
+      if (error) next[field.name] = error
+      else delete next[field.name]
+      return next
+    })
+  }
+
   async function handleSubmit() {
     if (currentStep.type === 'contact_fields') {
+      const errors: Record<string, string> = {}
       for (const field of currentStep.fields) {
         const error = validateFieldValue(field.type, contact[field.name], field.required)
-        if (error) {
-          setFieldError(`${field.label}: ${error}`)
-          return
-        }
+        if (error) errors[field.name] = error
       }
+      setContactErrors(errors)
+      if (Object.keys(errors).length > 0) return
     }
     setFieldError(null)
 
@@ -402,15 +413,21 @@ export default function QuizRenderer({
           <div>
             <legend>{currentStep.heading || 'Almost done — where should we send this?'}</legend>
             {currentStep.fields.map((field) => (
-              <input
-                key={field.name}
-                type={field.type}
-                placeholder={field.label}
-                required={field.required}
-                value={contact[field.name] ?? ''}
-                onChange={(e) => setContact({ ...contact, [field.name]: e.target.value })}
-                className="quiz-input"
-              />
+              <div key={field.name}>
+                <input
+                  type={field.type}
+                  placeholder={field.label}
+                  required={field.required}
+                  value={contact[field.name] ?? ''}
+                  onChange={(e) => {
+                    setContact({ ...contact, [field.name]: e.target.value })
+                    if (contactErrors[field.name]) validateContactField(field, e.target.value)
+                  }}
+                  onBlur={(e) => validateContactField(field, e.target.value)}
+                  className={`quiz-input ${contactErrors[field.name] ? 'quiz-input-error' : ''}`}
+                />
+                {contactErrors[field.name] && <p className="quiz-error">{contactErrors[field.name]}</p>}
+              </div>
             ))}
             {fieldError && <p className="quiz-error">{fieldError}</p>}
             <button type="button" className="quiz-submit" disabled={submitting} onClick={handleSubmit}>

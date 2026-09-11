@@ -119,6 +119,9 @@ export default function BrandSettingsForm({
   const [hoverColor, setHoverColor] = useState(initialTheme.hoverColor ?? '')
   const [radius, setRadius] = useState(initialTheme.radius ?? '14')
   const [progressColor, setProgressColor] = useState(initialTheme.progressColor ?? '')
+  const [progressTrackColor, setProgressTrackColor] = useState(initialTheme.progressTrackColor ?? '')
+  const [questionColor, setQuestionColor] = useState(initialTheme.questionColor ?? '')
+  const [errorColor, setErrorColor] = useState(initialTheme.errorColor ?? '')
   const [pending, startTransition] = useTransition()
   const [savedFlash, setSavedFlash] = useState(false)
 
@@ -140,6 +143,9 @@ export default function BrandSettingsForm({
     formData.set('hoverColor', hoverColor)
     formData.set('radius', radius)
     formData.set('progressColor', progressColor)
+    formData.set('progressTrackColor', progressTrackColor)
+    formData.set('questionColor', questionColor)
+    formData.set('errorColor', errorColor)
     startTransition(async () => {
       await updateBranding(formData)
       setSavedFlash(true)
@@ -220,7 +226,21 @@ export default function BrandSettingsForm({
                 <p className="text-xs text-gray-400 mt-1.5">Default headline/question text color</p>
               </div>
 
+              <ColorField
+                label="Question Heading"
+                hint="The question/step heading text — blank matches Text Color"
+                value={questionColor}
+                fallback={textColor || secondary}
+                onChange={setQuestionColor}
+              />
               <ColorField label="Progress Bar" value={progressColor} fallback={primary} onChange={setProgressColor} />
+              <ColorField
+                label="Progress Bar Background"
+                hint="The track behind the fill"
+                value={progressTrackColor}
+                fallback="#f0e8db"
+                onChange={setProgressTrackColor}
+              />
               <ColorField
                 label="Field Hover"
                 hint="Shown while hovering an option"
@@ -244,6 +264,13 @@ export default function BrandSettingsForm({
               <ColorField label="Button Color" hint="Continue/Submit buttons" value={buttonColor} fallback={primary} onChange={setButtonColor} />
               <ColorField label="Text Color" hint="Question/body text" value={textColor} fallback={secondary} onChange={setTextColor} />
               <ColorField label="Page Background" hint="Behind the white card" value={pageBackground} onChange={setPageBackground} />
+              <ColorField
+                label="Error Text"
+                hint="Validation messages, e.g. Enter a valid email"
+                value={errorColor}
+                fallback="#c0392b"
+                onChange={setErrorColor}
+              />
             </div>
           </Section>
 

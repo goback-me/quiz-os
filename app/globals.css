@@ -118,7 +118,7 @@ legend {
   font-weight: 700;
   margin-bottom: 16px;
   padding: 0;
-  color: var(--quiz-text, var(--quiz-secondary, #1a1a1a));
+  color: var(--quiz-question-color, var(--quiz-text, var(--quiz-secondary, #1a1a1a)));
 }
 
 /* Soft pill-style options, not bordered boxes */
@@ -163,6 +163,11 @@ legend {
   background: #fff;
 }
 
+.quiz-input-error,
+.quiz-input-error:focus {
+  border-color: var(--quiz-error-color, #c0392b) !important;
+}
+
 .quiz-submit {
   width: 100%;
   padding: 15px;
@@ -183,10 +188,13 @@ legend {
 
 /* Gradient progress bar fading from primary to transparent, like a warm sunset fade.
    --quiz-progress (falls back to --quiz-primary) lets a quiz override just the progress bar
-   color without touching the rest of the theme. */
+   fill color; --quiz-progress-track lets it override just the track behind it, independently. */
 .quiz-progress-track {
   height: 8px;
-  background: color-mix(in srgb, var(--quiz-progress, var(--quiz-primary, #c86b4a)) 12%, #f0e8db);
+  background: var(
+    --quiz-progress-track,
+    color-mix(in srgb, var(--quiz-progress, var(--quiz-primary, #c86b4a)) 12%, #f0e8db)
+  );
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 28px;
@@ -291,7 +299,7 @@ legend {
 }
 
 .quiz-error {
-  color: #c0392b;
+  color: var(--quiz-error-color, #c0392b);
   font-size: 13px;
   margin: -2px 0 10px;
 }

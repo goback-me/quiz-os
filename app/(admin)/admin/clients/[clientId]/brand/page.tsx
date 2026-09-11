@@ -53,6 +53,9 @@ async function updateBranding(formData: FormData) {
         hoverColor: (formData.get('hoverColor') as string) || undefined,
         radius: (formData.get('radius') as string) || undefined,
         progressColor: (formData.get('progressColor') as string) || undefined,
+        progressTrackColor: (formData.get('progressTrackColor') as string) || undefined,
+        questionColor: (formData.get('questionColor') as string) || undefined,
+        errorColor: (formData.get('errorColor') as string) || undefined,
       },
     },
   })
