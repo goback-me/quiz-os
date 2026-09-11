@@ -160,6 +160,8 @@ async function updateSlug(clientId: string, rawSlug: string): Promise<{ ok: bool
 
   try {
     await prisma.client.update({ where: { id: clientId }, data: { slug: clean } })
+    const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
+    invalidatePublicQuizCache()
     return { ok: true }
   } catch (err: any) {
     if (err?.code === 'P2002') return { ok: false, error: `"${clean}" is already taken by another client.` }
@@ -182,9 +184,11 @@ async function updateWebhook(formData: FormData) {
 async function toggleQuizStatus(formData: FormData) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   const quizId = String(formData.get('quizId'))
   const status = String(formData.get('status'))
   await prisma.quiz.update({ where: { id: quizId }, data: { status } })
+  invalidatePublicQuizCache()
 }
 
 async function createQuiz(formData: FormData) {
@@ -232,7 +236,9 @@ async function deleteQuiz(quizId: string, clientId: string) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
   const { revalidatePath } = await import('next/cache')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   await prisma.quiz.delete({ where: { id: quizId } }) // Submissions cascade-delete (see prisma/schema.prisma)
+  invalidatePublicQuizCache()
   revalidatePath(`/admin/clients/${clientId}`)
 }
 
@@ -240,6 +246,8 @@ async function deleteClient(clientId: string) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
   const { redirect } = await import('next/navigation')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   await prisma.client.delete({ where: { id: clientId } }) // Quizzes + submissions cascade-delete
+  invalidatePublicQuizCache()
   redirect('/admin/clients')
 }

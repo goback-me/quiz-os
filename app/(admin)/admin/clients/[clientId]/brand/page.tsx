@@ -31,6 +31,7 @@ export default async function BrandSettingsPage({ params }: { params: { clientId
 async function updateBranding(formData: FormData) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   const clientId = String(formData.get('clientId'))
   await prisma.client.update({
     where: { id: clientId },
@@ -60,4 +61,5 @@ async function updateBranding(formData: FormData) {
       },
     },
   })
+  invalidatePublicQuizCache()
 }

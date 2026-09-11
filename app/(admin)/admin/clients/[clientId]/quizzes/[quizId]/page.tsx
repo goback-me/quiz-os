@@ -35,16 +35,20 @@ export default async function QuizEditPage({
 async function saveQuiz(formData: FormData) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   const quizId = String(formData.get('quizId'))
   const status = String(formData.get('status'))
   const schema = JSON.parse(String(formData.get('schema')))
   await prisma.quiz.update({ where: { id: quizId }, data: { schema, status } })
+  invalidatePublicQuizCache()
 }
 
 async function deleteQuiz(quizId: string, clientId: string) {
   'use server'
   const { prisma } = await import('@/lib/prisma')
   const { redirect } = await import('next/navigation')
+  const { invalidatePublicQuizCache } = await import('@/lib/quiz-cache')
   await prisma.quiz.delete({ where: { id: quizId } }) // Submissions cascade-delete (see prisma/schema.prisma)
+  invalidatePublicQuizCache()
   redirect(`/admin/clients/${clientId}`)
 }
