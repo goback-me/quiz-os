@@ -2,6 +2,8 @@
 // on the server (submit route), so the disqualify check is enforced in both places.
 // Client-side check = instant UX. Server-side check = the one that's actually trusted.
 
+import type { ClientTheme } from './theme'
+
 export type QuizOption = {
   label: string
   value: string
@@ -53,6 +55,10 @@ export type QuizSchema = {
   /** Optional trust line shown below the card, e.g. "160+ NDIS participants supported, grown by referral."
    *  Text before the first comma renders bold in the primary color; the rest renders in plain secondary color. */
   trustLine?: string
+  /** Per-quiz color/style overrides layered on top of the client's theme (see lib/theme.ts
+   *  mergeTheme) — lives here in the JSON schema rather than a new DB column, so it never needs
+   *  a migration. Any field left unset falls back to the client's default. */
+  themeOverride?: Partial<ClientTheme>
 }
 
 export type Answers = Record<string, string | string[]>

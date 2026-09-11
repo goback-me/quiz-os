@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   GripVertical,
@@ -10,10 +10,17 @@ import {
   Smartphone,
   Monitor,
   Trash2,
+  CircleDot,
+  CheckSquare,
+  Type as TypeIcon,
+  Contact,
+  Mail,
+  Phone,
+  AlignLeft,
 } from 'lucide-react'
 import type { QuizSchema, QuizStep, QuizOption } from '@/lib/quiz-logic'
 import { DEFAULT_DISQUALIFY_MESSAGE } from '@/lib/quiz-logic'
-import { themeToCssVars, type ClientTheme } from '@/lib/theme'
+import { themeToCssVars, mergeTheme, type ClientTheme } from '@/lib/theme'
 import QuizRenderer from '@/components/QuizRenderer'
 import ConfirmButton from '@/components/admin/ConfirmButton'
 
@@ -21,6 +28,31 @@ let idCounter = 0
 function newId(prefix: string) {
   idCounter += 1
   return `${prefix}_${Date.now()}_${idCounter}`
+}
+
+// Which step you were last editing, per quiz — so reopening the builder (new page load, or
+// coming back after navigating away) picks up where you left off instead of always jumping
+// back to step 1.
+const lastStepKey = (quizId: string) => `quizos_builder_last_step_${quizId}`
+
+const STEP_TYPES: { type: QuizStep['type']; label: string; icon: typeof CircleDot }[] = [
+  { type: 'single_select', label: 'Single Choice', icon: CircleDot },
+  { type: 'multi_select', label: 'Multiple Choice', icon: CheckSquare },
+  { type: 'text_input', label: 'Text / Email / Phone', icon: TypeIcon },
+  { type: 'contact_fields', label: 'Contact Form', icon: Contact },
+]
+
+function stepTypeIcon(type: QuizStep['type']) {
+  return STEP_TYPES.find((t) => t.type === type)?.icon ?? CircleDot
+}
+
+const CONTACT_FIELD_ICONS: Record<string, typeof TypeIcon> = { text: AlignLeft, email: Mail, tel: Phone }
+
+const STEP_TYPE_COLORS: Record<QuizStep['type'], string> = {
+  single_select: 'bg-blue-50 text-blue-600',
+  multi_select: 'bg-purple-50 text-purple-600',
+  text_input: 'bg-amber-50 text-amber-600',
+  contact_fields: 'bg-emerald-50 text-emerald-600',
 }
 
 export default function QuizBuilder({
@@ -53,6 +85,17 @@ export default function QuizBuilder({
   const steps = schema.steps
   const currentStep = steps[selectedIndex]
 
+  // Restore the last-edited step once, on mount, for this quiz.
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(lastStepKey(quizId)))
+    if (Number.isInteger(saved) && saved >= 0 && saved < initialSchema.steps.length) setSelectedIndex(saved)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(lastStepKey(quizId), String(selectedIndex))
+  }, [quizId, selectedIndex])
+
   function updateStep(index: number, updater: (step: QuizStep) => QuizStep) {
     setSchema((prev) => ({
       ...prev,
@@ -69,13 +112,29 @@ export default function QuizBuilder({
     })
   }
 
-  function addStep() {
-    const step: QuizStep = {
-      id: newId('q'),
-      type: 'single_select',
-      question: 'New question',
-      options: [{ label: 'Option A', value: 'option_a' }],
-    }
+  function updateThemeOverride(patch: Partial<ClientTheme>) {
+    setSchema((prev) => {
+      const next: Partial<ClientTheme> = { ...prev.themeOverride, ...patch }
+      for (const key of Object.keys(next) as (keyof ClientTheme)[]) {
+        if (next[key] === '' || next[key] === undefined) delete next[key]
+      }
+      return { ...prev, themeOverride: Object.keys(next).length ? next : undefined }
+    })
+  }
+
+  const effectiveTheme = mergeTheme(theme, schema.themeOverride)
+
+  function addStep(type: QuizStep['type'] = 'single_select') {
+    const step: QuizStep =
+      type === 'contact_fields'
+        ? {
+            id: newId('q'),
+            type: 'contact_fields',
+            fields: [{ name: 'fullName', label: 'Full name', type: 'text', required: true }],
+          }
+        : type === 'text_input'
+        ? { id: newId('q'), type: 'text_input', question: 'New question', inputType: 'text', required: true }
+        : { id: newId('q'), type, question: 'New question', options: [{ label: 'Option A', value: 'option_a' }] }
     setSchema((prev) => ({ ...prev, steps: [...prev.steps, step] }))
     setSelectedIndex(steps.length)
   }
@@ -157,47 +216,48 @@ export default function QuizBuilder({
             <h2 className="text-sm font-semibold">Quiz Flow</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                draggable
-                onDragStart={() => setDragIndex(index)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragIndex !== null && dragIndex !== index) reorder(dragIndex, index)
-                  setDragIndex(null)
-                }}
-                onClick={() => setSelectedIndex(index)}
-                className={`flex items-center gap-2 p-2.5 rounded-lg mb-1.5 cursor-pointer group transition-colors ${
-                  selectedIndex === index
-                    ? 'bg-gray-50 border border-black'
-                    : 'border border-transparent hover:bg-gray-50'
-                }`}
-              >
-                <GripVertical size={16} className="text-gray-300 cursor-grab shrink-0" />
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs shrink-0">
-                  {index + 1}
-                </div>
-                <span className={`text-sm flex-1 truncate ${selectedIndex === index ? 'font-medium' : 'text-gray-500'}`}>
-                  {step.type === 'contact_fields' ? 'Contact details' : step.question}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeStep(index)
+            {steps.map((step, index) => {
+              const StepIcon = stepTypeIcon(step.type)
+              return (
+                <div
+                  key={step.id}
+                  draggable
+                  onDragStart={() => setDragIndex(index)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (dragIndex !== null && dragIndex !== index) reorder(dragIndex, index)
+                    setDragIndex(null)
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 shrink-0"
+                  onClick={() => setSelectedIndex(index)}
+                  className={`flex items-center gap-2 p-2.5 rounded-lg mb-1.5 cursor-pointer group transition-colors ${
+                    selectedIndex === index
+                      ? 'bg-gray-50 border border-black'
+                      : 'border border-transparent hover:bg-gray-50'
+                  }`}
                 >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={addStep}
-              className="w-full mt-1.5 py-2.5 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-black hover:border-black transition-all flex items-center justify-center gap-1.5 text-sm"
-            >
-              <Plus size={16} /> Add step
-            </button>
+                  <GripVertical size={16} className="text-gray-300 cursor-grab shrink-0" />
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${STEP_TYPE_COLORS[step.type]}`}
+                    title={STEP_TYPES.find((t) => t.type === step.type)?.label}
+                  >
+                    <StepIcon size={14} />
+                  </div>
+                  <span className={`text-sm flex-1 truncate ${selectedIndex === index ? 'font-medium' : 'text-gray-500'}`}>
+                    {step.type === 'contact_fields' ? 'Contact details' : step.question}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeStep(index)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )
+            })}
+            <AddStepPicker onAdd={addStep} />
           </div>
         </aside>
 
@@ -213,39 +273,49 @@ export default function QuizBuilder({
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <div className="mb-5">
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Step Type</label>
-                    <select
-                      value={currentStep.type}
-                      onChange={(e) => {
-                        const type = e.target.value as QuizStep['type']
-                        updateStep(selectedIndex, (s) => {
-                          if (type === 'contact_fields') {
-                            return {
-                              id: s.id,
-                              type: 'contact_fields',
-                              fields: [{ name: 'fullName', label: 'Full name', type: 'text', required: true }],
-                            }
-                          }
-                          if (type === 'text_input') {
-                            return {
-                              id: s.id,
-                              type: 'text_input',
-                              question: 'question' in s ? s.question : 'New question',
-                              inputType: 'text',
-                              required: true,
-                            }
-                          }
-                          const question = 'question' in s ? s.question : 'New question'
-                          const options = 'options' in s ? s.options : [{ label: 'Option A', value: 'option_a' }]
-                          return { id: s.id, type, question, options }
-                        })
-                      }}
-                      className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
-                    >
-                      <option value="single_select">Single Choice</option>
-                      <option value="multi_select">Multiple Choice</option>
-                      <option value="text_input">Text / Email / Phone</option>
-                      <option value="contact_fields">Contact Form (multiple fields)</option>
-                    </select>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {STEP_TYPES.map(({ type, label, icon: Icon }) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            updateStep(selectedIndex, (s) => {
+                              if (type === 'contact_fields') {
+                                return {
+                                  id: s.id,
+                                  type: 'contact_fields',
+                                  fields: [{ name: 'fullName', label: 'Full name', type: 'text', required: true }],
+                                }
+                              }
+                              if (type === 'text_input') {
+                                return {
+                                  id: s.id,
+                                  type: 'text_input',
+                                  question: 'question' in s ? s.question : 'New question',
+                                  inputType: 'text',
+                                  required: true,
+                                }
+                              }
+                              const question = 'question' in s ? s.question : 'New question'
+                              const options = 'options' in s ? s.options : [{ label: 'Option A', value: 'option_a' }]
+                              return { id: s.id, type, question, options }
+                            })
+                          }}
+                          className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border text-center transition-colors ${
+                            currentStep.type === type
+                              ? 'border-black bg-gray-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center ${STEP_TYPE_COLORS[type]}`}>
+                            <Icon size={14} />
+                          </span>
+                          <span className={`text-xs leading-tight ${currentStep.type === type ? 'font-medium text-black' : 'text-gray-500'}`}>
+                            {label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {currentStep.type === 'text_input' && (
@@ -321,7 +391,7 @@ export default function QuizBuilder({
                           {currentStep.options.map((opt, optIndex) => (
                             <div
                               key={optIndex}
-                              className={`p-1.5 rounded-lg space-y-1.5 ${opt.disqualify ? 'bg-red-50' : ''}`}
+                              className={`group p-1.5 rounded-lg space-y-1.5 ${opt.disqualify ? 'bg-red-50' : ''}`}
                             >
                               <div className="flex items-center gap-2">
                                 <GripVertical size={16} className="text-gray-300 shrink-0" />
@@ -343,7 +413,9 @@ export default function QuizBuilder({
                                   className="flex-1 p-1.5 bg-white border border-gray-200 rounded text-sm focus:border-black outline-none"
                                 />
                                 <label
-                                  className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none"
+                                  className={`flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none transition-opacity ${
+                                    opt.disqualify ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                  }`}
                                   title="Selecting this option disqualifies the visitor"
                                 >
                                   <input
@@ -359,7 +431,7 @@ export default function QuizBuilder({
                                       !('options' in s) ? s : { ...s, options: s.options.filter((_, i) => i !== optIndex) }
                                     )
                                   }
-                                  className="text-gray-400 hover:text-red-500 shrink-0"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 shrink-0"
                                 >
                                   <X size={16} />
                                 </button>
@@ -412,8 +484,13 @@ export default function QuizBuilder({
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1.5">Fields</label>
-                      {currentStep.fields.map((field, fieldIndex) => (
-                        <div key={fieldIndex} className="flex items-center gap-2">
+                      {currentStep.fields.map((field, fieldIndex) => {
+                        const FieldIcon = CONTACT_FIELD_ICONS[field.type] ?? AlignLeft
+                        return (
+                        <div key={fieldIndex} className="group flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+                            <FieldIcon size={13} />
+                          </span>
                           <input
                             value={field.label}
                             onChange={(e) =>
@@ -451,12 +528,12 @@ export default function QuizBuilder({
                                   : { ...s, fields: s.fields.filter((_, i) => i !== fieldIndex) }
                               )
                             }
-                            className="text-gray-400 hover:text-red-500"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
                           >
                             <X size={16} />
                           </button>
                         </div>
-                      ))}
+                      )})}
                       <button
                         onClick={() =>
                           updateStep(selectedIndex, (s) =>
@@ -600,6 +677,154 @@ export default function QuizBuilder({
               </div>
             </div>
 
+            {/* Per-quiz color/style overrides — lives in schema.themeOverride (JSON), never a DB
+                column, so it's zero-risk to ship: every field left blank just falls back to this
+                client's default theme, exactly as before. */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Colors & Style</h3>
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-5">
+                <p className="text-xs text-gray-500">
+                  Overrides this client's default theme just for this quiz. Leave any field blank to keep using the
+                  client default shown as its placeholder.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <OverrideColorField
+                    label="Primary (accent)"
+                    value={schema.themeOverride?.primary ?? ''}
+                    fallback={theme.primary}
+                    onChange={(v) => updateThemeOverride({ primary: v })}
+                  />
+                  <OverrideColorField
+                    label="Secondary (headline/text)"
+                    value={schema.themeOverride?.secondary ?? ''}
+                    fallback={theme.secondary}
+                    onChange={(v) => updateThemeOverride({ secondary: v })}
+                  />
+                  <OverrideColorField
+                    label="Progress Bar"
+                    value={schema.themeOverride?.progressColor ?? ''}
+                    fallback={theme.progressColor || theme.primary}
+                    onChange={(v) => updateThemeOverride({ progressColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Page Background"
+                    value={schema.themeOverride?.pageBackground ?? ''}
+                    fallback={theme.pageBackground || '#fdf3e7'}
+                    onChange={(v) => updateThemeOverride({ pageBackground: v })}
+                  />
+                  <OverrideColorField
+                    label="Card Background"
+                    value={schema.themeOverride?.cardBackground ?? ''}
+                    fallback={theme.cardBackground || '#ffffff'}
+                    onChange={(v) => updateThemeOverride({ cardBackground: v })}
+                  />
+                  <OverrideColorField
+                    label="Field Background"
+                    value={schema.themeOverride?.fieldBackground ?? ''}
+                    fallback={theme.fieldBackground || theme.primary}
+                    onChange={(v) => updateThemeOverride({ fieldBackground: v })}
+                  />
+                  <OverrideColorField
+                    label="Button Color"
+                    value={schema.themeOverride?.buttonColor ?? ''}
+                    fallback={theme.buttonColor || theme.primary}
+                    onChange={(v) => updateThemeOverride({ buttonColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Text Color"
+                    value={schema.themeOverride?.textColor ?? ''}
+                    fallback={theme.textColor || theme.secondary}
+                    onChange={(v) => updateThemeOverride({ textColor: v })}
+                  />
+                  <OverrideColorField
+                    label="Field Hover Color"
+                    value={schema.themeOverride?.hoverColor ?? ''}
+                    fallback={theme.hoverColor || theme.primary}
+                    onChange={(v) => updateThemeOverride({ hoverColor: v })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-gray-100">
+                  <OverrideNumberField
+                    label="Font Size (px)"
+                    value={schema.themeOverride?.fontSize ?? ''}
+                    fallback={theme.fontSize || '15'}
+                    min={12}
+                    max={22}
+                    onChange={(v) => updateThemeOverride({ fontSize: v })}
+                  />
+                  <OverrideNumberField
+                    label="Corner Radius (px)"
+                    value={schema.themeOverride?.radius ?? ''}
+                    fallback={theme.radius || '14'}
+                    min={0}
+                    max={32}
+                    onChange={(v) => updateThemeOverride({ radius: v })}
+                  />
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <OverrideNumberField
+                      label="Field Border (px)"
+                      value={schema.themeOverride?.fieldBorderWidth ?? ''}
+                      fallback={theme.fieldBorderWidth || '0'}
+                      min={0}
+                      max={4}
+                      onChange={(v) => updateThemeOverride({ fieldBorderWidth: v })}
+                    />
+                    <OverrideColorField
+                      label="Field Border Color"
+                      value={schema.themeOverride?.fieldBorderColor ?? ''}
+                      fallback={theme.fieldBorderColor || '#e5ddd0'}
+                      onChange={(v) => updateThemeOverride({ fieldBorderColor: v })}
+                    />
+                  </div>
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <OverrideNumberField
+                      label="Button Border (px)"
+                      value={schema.themeOverride?.buttonBorderWidth ?? ''}
+                      fallback={theme.buttonBorderWidth || '0'}
+                      min={0}
+                      max={4}
+                      onChange={(v) => updateThemeOverride({ buttonBorderWidth: v })}
+                    />
+                    <OverrideColorField
+                      label="Button Border Color"
+                      value={schema.themeOverride?.buttonBorderColor ?? ''}
+                      fallback={theme.buttonBorderColor || '#000000'}
+                      onChange={(v) => updateThemeOverride({ buttonBorderColor: v })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Typography</label>
+                    <select
+                      value={schema.themeOverride?.font ?? ''}
+                      onChange={(e) => updateThemeOverride({ font: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                    >
+                      <option value="">Use client default ({theme.font ?? 'General Sans'})</option>
+                      <option value="General Sans (Default)">General Sans</option>
+                      <option value="Inter">Inter</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Open Sans">Open Sans</option>
+                      <option value="Poppins">Poppins</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Logo URL</label>
+                    <input
+                      value={schema.themeOverride?.logoUrl ?? ''}
+                      onChange={(e) => updateThemeOverride({ logoUrl: e.target.value })}
+                      placeholder={theme.logoUrl || 'Use client default'}
+                      className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* End screen */}
             <div>
               <h3 className="text-lg font-semibold mb-3">End Screen</h3>
@@ -684,14 +909,14 @@ export default function QuizBuilder({
           <div className="flex-1 overflow-y-auto">
             <div
               className="quiz-page"
-              style={{ ...themeToCssVars(theme), minHeight: 0, justifyContent: 'flex-start' }}
+              style={{ ...themeToCssVars(effectiveTheme), minHeight: 0, justifyContent: 'flex-start' }}
             >
               <div className={previewDevice === 'mobile' ? 'w-[260px]' : 'w-[380px]'}>
                 <QuizRenderer
                   key={selectedIndex}
                   quizId={quizId}
                   schema={schema}
-                  logoUrl={theme.logoUrl}
+                  logoUrl={effectiveTheme.logoUrl}
                   preview
                   initialStepIndex={selectedIndex}
                 />
@@ -700,6 +925,117 @@ export default function QuizBuilder({
           </div>
         </aside>
       </div>
+    </div>
+  )
+}
+
+function OverrideColorField({
+  label,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string
+  value: string
+  fallback: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value || fallback}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={`Default: ${fallback}`}
+          className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-mono focus:border-black outline-none"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function OverrideNumberField({
+  label,
+  value,
+  fallback,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  value: string
+  fallback: string
+  min: number
+  max: number
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={fallback}
+        className="w-full rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
+      />
+    </div>
+  )
+}
+
+// Click "+ Add step" -> a small grid of step types to add, each with its own icon — replaces a
+// single generic button so it's clear at a glance what a new step can be, before you add it.
+function AddStepPicker({ onAdd }: { onAdd: (type: QuizStep['type']) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full mt-1.5 py-2.5 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-black hover:border-black transition-all flex items-center justify-center gap-1.5 text-sm"
+      >
+        <Plus size={16} /> Add step
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-20 grid grid-cols-2 gap-1.5">
+            {STEP_TYPES.map(({ type, label, icon: Icon }) => (
+              <button
+                key={type}
+                onClick={() => {
+                  onAdd(type)
+                  setOpen(false)
+                }}
+                className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-gray-100 hover:border-black hover:bg-gray-50 transition-colors text-center"
+              >
+                <span className={`w-8 h-8 rounded-full flex items-center justify-center ${STEP_TYPE_COLORS[type]}`}>
+                  <Icon size={16} />
+                </span>
+                <span className="text-xs text-gray-700 leading-tight">{label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

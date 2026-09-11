@@ -1,41 +1,94 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { ImageIcon } from 'lucide-react'
+import { ImageIcon, Palette, SlidersHorizontal, LayoutTemplate, Image as ImageSectionIcon } from 'lucide-react'
 import type { ClientTheme } from '@/lib/theme'
 
 const PRIMARY_PRESETS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#000000']
 const SECONDARY_PRESETS = ['#F3F4F6', '#E5E7EB', '#D1D5DB']
 
+function Section({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Palette
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+      <h3 className="text-sm font-semibold text-black mb-5 flex items-center gap-2">
+        <Icon size={16} className="text-gray-400" /> {title}
+      </h3>
+      {children}
+    </div>
+  )
+}
+
 function ColorField({
   label,
   hint,
   value,
+  fallback,
   onChange,
 }: {
   label: string
   hint?: string
   value: string
+  fallback?: string
   onChange: (v: string) => void
 }) {
   return (
     <div>
       <label className="block text-xs font-medium text-black mb-2">{label}</label>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <input
           type="color"
-          value={value}
+          value={value || fallback || '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+          className="w-10 h-10 rounded-full cursor-pointer border border-gray-200 shrink-0"
         />
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs font-mono focus:border-black outline-none"
+          placeholder={fallback ? `Auto: ${fallback}` : undefined}
+          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:border-black outline-none"
         />
       </div>
-      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-400 mt-1.5">{hint}</p>}
+    </div>
+  )
+}
+
+function NumberField({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  value: string
+  min: number
+  max: number
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-black mb-2">{label}</label>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
+      />
+      {hint && <p className="text-xs text-gray-400 mt-1.5">{hint}</p>}
     </div>
   )
 }
@@ -65,7 +118,9 @@ export default function BrandSettingsForm({
   const [buttonBorderWidth, setButtonBorderWidth] = useState(initialTheme.buttonBorderWidth ?? '0')
   const [hoverColor, setHoverColor] = useState(initialTheme.hoverColor ?? '')
   const [radius, setRadius] = useState(initialTheme.radius ?? '14')
+  const [progressColor, setProgressColor] = useState(initialTheme.progressColor ?? '')
   const [pending, startTransition] = useTransition()
+  const [savedFlash, setSavedFlash] = useState(false)
 
   function handleSubmit(formData: FormData) {
     formData.set('primary', primary)
@@ -84,7 +139,12 @@ export default function BrandSettingsForm({
     formData.set('buttonBorderWidth', buttonBorderWidth)
     formData.set('hoverColor', hoverColor)
     formData.set('radius', radius)
-    startTransition(() => updateBranding(formData))
+    formData.set('progressColor', progressColor)
+    startTransition(async () => {
+      await updateBranding(formData)
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 1500)
+    })
   }
 
   // Effective values used by the live preview — fall back to primary/secondary exactly like the
@@ -94,239 +154,199 @@ export default function BrandSettingsForm({
   const effectiveText = textColor || secondary
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-      <h2 className="text-xl font-semibold text-black mb-4">Brand Settings</h2>
-      <form action={handleSubmit}>
-        <input type="hidden" name="clientId" value={clientId} />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">Primary Color</label>
-              <div className="flex gap-2">
-                {PRIMARY_PRESETS.map((color) => (
-                  <button
-                    type="button"
-                    key={color}
-                    onClick={() => setPrimary(color)}
-                    className="w-8 h-8 rounded-full cursor-pointer transition-all"
-                    style={{
-                      backgroundColor: color,
-                      boxShadow:
-                        primary === color
-                          ? `0 0 0 2px white, 0 0 0 4px ${color}`
-                          : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
-                    }}
-                    aria-label={color}
-                  />
-                ))}
-                <input
-                  type="color"
-                  value={primary}
-                  onChange={(e) => setPrimary(e.target.value)}
-                  className="w-8 h-8 rounded-full cursor-pointer border border-gray-200"
-                  title="Custom color"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Accent — eyebrow label, progress bar, default button/field tint</p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">Secondary Color</label>
-              <div className="flex gap-2">
-                {SECONDARY_PRESETS.map((color) => (
-                  <button
-                    type="button"
-                    key={color}
-                    onClick={() => setSecondary(color)}
-                    className="w-8 h-8 rounded-full cursor-pointer transition-all"
-                    style={{
-                      backgroundColor: color,
-                      boxShadow:
-                        secondary === color
-                          ? `0 0 0 2px white, 0 0 0 4px ${color}`
-                          : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
-                    }}
-                    aria-label={color}
-                  />
-                ))}
-                <input
-                  type="color"
-                  value={secondary}
-                  onChange={(e) => setSecondary(e.target.value)}
-                  className="w-8 h-8 rounded-full cursor-pointer border border-gray-200"
-                  title="Custom color"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Default headline/question text color</p>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100 grid grid-cols-1 gap-4">
-              <ColorField
-                label="Form Background"
-                hint="The white card itself"
-                value={cardBackground}
-                onChange={setCardBackground}
-              />
-              <ColorField
-                label="Field Background"
-                hint="Answer option pills — leave blank to auto-tint from Primary"
-                value={fieldBackground}
-                onChange={setFieldBackground}
-              />
-              <ColorField
-                label="Button Color"
-                hint="Continue/Submit buttons — leave blank to match Primary"
-                value={buttonColor}
-                onChange={setButtonColor}
-              />
-              <ColorField
-                label="Text Color"
-                hint="Question/body text — leave blank to match Secondary"
-                value={textColor}
-                onChange={setTextColor}
-              />
-            </div>
-
-            <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-4">
+    <form action={handleSubmit}>
+      <input type="hidden" name="clientId" value={clientId} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          <Section icon={Palette} title="Brand Colors">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Base Font Size (px)</label>
-                <input
-                  type="number"
-                  min={12}
-                  max={22}
-                  value={fontSize}
-                  onChange={(e) => setFontSize(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-black mb-2">Corner Radius (px)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={32}
-                  value={radius}
-                  onChange={(e) => setRadius(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black outline-none"
-                />
-                <p className="text-xs text-gray-400 mt-1">Applies to the card, fields, and button — 0 = sharp corners</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-black mb-2">Field Hover Color</label>
-                <div className="flex items-center gap-2">
+                <label className="block text-xs font-medium text-black mb-2">Primary</label>
+                <div className="flex gap-2">
+                  {PRIMARY_PRESETS.map((color) => (
+                    <button
+                      type="button"
+                      key={color}
+                      onClick={() => setPrimary(color)}
+                      className="w-9 h-9 rounded-full cursor-pointer transition-all"
+                      style={{
+                        backgroundColor: color,
+                        boxShadow:
+                          primary === color
+                            ? `0 0 0 2px white, 0 0 0 4px ${color}`
+                            : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                      }}
+                      aria-label={color}
+                    />
+                  ))}
                   <input
                     type="color"
-                    value={hoverColor || primary}
-                    onChange={(e) => setHoverColor(e.target.value)}
-                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
-                  />
-                  <input
-                    type="text"
-                    value={hoverColor}
-                    onChange={(e) => setHoverColor(e.target.value)}
-                    placeholder="Auto (tints from Primary)"
-                    className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs font-mono focus:border-black outline-none"
+                    value={primary}
+                    onChange={(e) => setPrimary(e.target.value)}
+                    className="w-9 h-9 rounded-full cursor-pointer border border-gray-200"
+                    title="Custom color"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Background shown while hovering an option — leave blank for automatic</p>
+                <p className="text-xs text-gray-400 mt-1.5">Eyebrow label, progress bar, default button/field tint</p>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Secondary</label>
+                <div className="flex gap-2">
+                  {SECONDARY_PRESETS.map((color) => (
+                    <button
+                      type="button"
+                      key={color}
+                      onClick={() => setSecondary(color)}
+                      className="w-9 h-9 rounded-full cursor-pointer transition-all"
+                      style={{
+                        backgroundColor: color,
+                        boxShadow:
+                          secondary === color
+                            ? `0 0 0 2px white, 0 0 0 4px ${color}`
+                            : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                      }}
+                      aria-label={color}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={secondary}
+                    onChange={(e) => setSecondary(e.target.value)}
+                    className="w-9 h-9 rounded-full cursor-pointer border border-gray-200"
+                    title="Custom color"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Default headline/question text color</p>
+              </div>
+
+              <ColorField label="Progress Bar" value={progressColor} fallback={primary} onChange={setProgressColor} />
+              <ColorField
+                label="Field Hover"
+                hint="Shown while hovering an option"
+                value={hoverColor}
+                fallback={primary}
+                onChange={setHoverColor}
+              />
+            </div>
+          </Section>
+
+          <Section icon={LayoutTemplate} title="Card & Fields">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <ColorField label="Form Background" hint="The white card itself" value={cardBackground} onChange={setCardBackground} />
+              <ColorField
+                label="Field Background"
+                hint="Answer option pills — blank auto-tints from Primary"
+                value={fieldBackground}
+                fallback={primary}
+                onChange={setFieldBackground}
+              />
+              <ColorField label="Button Color" hint="Continue/Submit buttons" value={buttonColor} fallback={primary} onChange={setButtonColor} />
+              <ColorField label="Text Color" hint="Question/body text" value={textColor} fallback={secondary} onChange={setTextColor} />
+              <ColorField label="Page Background" hint="Behind the white card" value={pageBackground} onChange={setPageBackground} />
+            </div>
+          </Section>
+
+          <Section icon={SlidersHorizontal} title="Borders">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-medium text-black mb-2">Field Border</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <input
                     type="number"
                     min={0}
                     max={4}
                     value={fieldBorderWidth}
                     onChange={(e) => setFieldBorderWidth(e.target.value)}
-                    className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
+                    className="w-16 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
                     title="Width in px, 0 = no border"
                   />
                   <input
                     type="color"
                     value={fieldBorderColor || '#e5ddd0'}
                     onChange={(e) => setFieldBorderColor(e.target.value)}
-                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+                    className="w-10 h-10 rounded-full cursor-pointer border border-gray-200 shrink-0"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Width in px, 0 = none</p>
+                <p className="text-xs text-gray-400 mt-1.5">Width in px, 0 = none</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-black mb-2">Button Border</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <input
                     type="number"
                     min={0}
                     max={4}
                     value={buttonBorderWidth}
                     onChange={(e) => setButtonBorderWidth(e.target.value)}
-                    className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
+                    className="w-16 rounded-lg border border-gray-200 px-2 py-2 text-sm focus:border-black outline-none"
                     title="Width in px, 0 = no border"
                   />
                   <input
                     type="color"
                     value={buttonBorderColor || '#000000'}
                     onChange={(e) => setButtonBorderColor(e.target.value)}
-                    className="w-8 h-8 rounded-full cursor-pointer border border-gray-200 shrink-0"
+                    className="w-10 h-10 rounded-full cursor-pointer border border-gray-200 shrink-0"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Width in px, 0 = none</p>
+                <p className="text-xs text-gray-400 mt-1.5">Width in px, 0 = none</p>
               </div>
             </div>
+          </Section>
 
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">Typography</label>
-              <select
-                value={font}
-                onChange={(e) => setFont(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:ring-2 focus:ring-gray-100 outline-none"
-              >
-                <option>General Sans (Default)</option>
-                <option>Inter</option>
-                <option>Roboto</option>
-                <option>Open Sans</option>
-                <option>Poppins</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">Page Background</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={pageBackground}
-                  onChange={(e) => setPageBackground(e.target.value)}
-                  className="w-8 h-8 rounded-full cursor-pointer border border-gray-200"
-                />
-                <span className="text-xs text-gray-500">Behind the white card — warm cream by default</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-black mb-2">Logo URL</label>
-              <input
-                type="text"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://client.com/logo.png"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:ring-2 focus:ring-gray-100 outline-none"
+          <Section icon={ImageSectionIcon} title="Typography & Logo">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <NumberField label="Base Font Size (px)" value={fontSize} min={12} max={22} onChange={setFontSize} />
+              <NumberField
+                label="Corner Radius (px)"
+                hint="Applies to the card, fields, and button"
+                value={radius}
+                min={0}
+                max={32}
+                onChange={setRadius}
               />
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Typography</label>
+                <select
+                  value={font}
+                  onChange={(e) => setFont(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:ring-2 focus:ring-gray-100 outline-none"
+                >
+                  <option>General Sans (Default)</option>
+                  <option>Inter</option>
+                  <option>Roboto</option>
+                  <option>Open Sans</option>
+                  <option>Poppins</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-black mb-2">Logo URL</label>
+                <input
+                  type="text"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://client.com/logo.png"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:ring-2 focus:ring-gray-100 outline-none"
+                />
+              </div>
             </div>
+          </Section>
 
-            <button
-              type="submit"
-              disabled={pending}
-              className="mt-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-60"
-            >
-              {pending ? 'Saving…' : 'Save changes'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={pending}
+            className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-60 self-start"
+          >
+            {pending ? 'Saving…' : savedFlash ? 'Saved ✓' : 'Save changes'}
+          </button>
+        </div>
 
-          {/* Live Preview */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 flex flex-col justify-center items-center relative overflow-hidden">
-            <div className="absolute top-2 left-2 text-[11px] text-gray-400 font-mono">Preview</div>
+        {/* Live Preview */}
+        <div className="lg:col-span-4">
+          <div className="sticky top-6 bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute top-3 left-3 text-[11px] text-gray-400 font-mono uppercase tracking-wide">Preview</div>
             <div
-              className="w-full max-w-[280px] rounded-xl shadow-md p-4 mt-4"
+              className="w-full max-w-[280px] rounded-xl shadow-md p-4 mt-8"
               style={{ backgroundColor: cardBackground }}
             >
               <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
@@ -366,7 +386,7 @@ export default function BrandSettingsForm({
             </div>
           </div>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
   )
 }

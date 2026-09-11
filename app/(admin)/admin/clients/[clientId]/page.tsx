@@ -1,15 +1,13 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Edit } from 'lucide-react'
-import BrandSettingsForm from '@/components/admin/BrandSettingsForm'
+import { Edit, Palette } from 'lucide-react'
 import WebhookField from '@/components/admin/WebhookField'
 import QuizStatusToggle from '@/components/admin/QuizStatusToggle'
 import CopyLinkButton from '@/components/admin/CopyLinkButton'
 import EmbedCodeButton from '@/components/admin/EmbedCodeButton'
 import SlugField from '@/components/admin/SlugField'
 import ConfirmButton from '@/components/admin/ConfirmButton'
-import type { ClientTheme } from '@/lib/theme'
 import { getPublicSiteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
@@ -32,26 +30,27 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
   })
   const activeQuizzes = client.quizzes.filter((q) => q.status === 'live').length
 
-  const theme = client.theme as ClientTheme
   const siteUrl = getPublicSiteUrl()
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-black">{client.name}</h1>
-        <p className="text-sm text-gray-500 mt-1">{client.description ?? 'Client Details & Configuration'}</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-black">{client.name}</h1>
+          <p className="text-sm text-gray-500 mt-1">{client.description ?? 'Client Details & Configuration'}</p>
+        </div>
+        <Link
+          href={`/admin/clients/${client.id}/brand`}
+          className="shrink-0 flex items-center gap-2 bg-white border border-gray-200 text-black px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          <Palette size={16} /> Brand Settings
+        </Link>
       </div>
 
       <SlugField clientId={client.id} initialSlug={client.slug} siteUrl={siteUrl} updateSlug={updateSlug} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-6">
-          <BrandSettingsForm
-            clientId={client.id}
-            initialTheme={theme}
-            updateBranding={updateBranding}
-          />
-
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-xl font-semibold text-black">Active Quizzes</h2>
@@ -166,35 +165,6 @@ async function updateSlug(clientId: string, rawSlug: string): Promise<{ ok: bool
     if (err?.code === 'P2002') return { ok: false, error: `"${clean}" is already taken by another client.` }
     return { ok: false, error: 'Could not save — try again.' }
   }
-}
-
-async function updateBranding(formData: FormData) {
-  'use server'
-  const { prisma } = await import('@/lib/prisma')
-  const clientId = String(formData.get('clientId'))
-  await prisma.client.update({
-    where: { id: clientId },
-    data: {
-      theme: {
-        primary: String(formData.get('primary')),
-        secondary: String(formData.get('secondary')),
-        font: String(formData.get('font')),
-        logoUrl: (formData.get('logoUrl') as string) || undefined,
-        pageBackground: (formData.get('pageBackground') as string) || undefined,
-        cardBackground: (formData.get('cardBackground') as string) || undefined,
-        fieldBackground: (formData.get('fieldBackground') as string) || undefined,
-        buttonColor: (formData.get('buttonColor') as string) || undefined,
-        textColor: (formData.get('textColor') as string) || undefined,
-        fontSize: (formData.get('fontSize') as string) || undefined,
-        fieldBorderColor: (formData.get('fieldBorderColor') as string) || undefined,
-        fieldBorderWidth: (formData.get('fieldBorderWidth') as string) || undefined,
-        buttonBorderColor: (formData.get('buttonBorderColor') as string) || undefined,
-        buttonBorderWidth: (formData.get('buttonBorderWidth') as string) || undefined,
-        hoverColor: (formData.get('hoverColor') as string) || undefined,
-        radius: (formData.get('radius') as string) || undefined,
-      },
-    },
-  })
 }
 
 async function updateWebhook(formData: FormData) {

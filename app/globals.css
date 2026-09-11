@@ -181,10 +181,12 @@ legend {
   cursor: not-allowed;
 }
 
-/* Gradient progress bar fading from primary to transparent, like a warm sunset fade */
+/* Gradient progress bar fading from primary to transparent, like a warm sunset fade.
+   --quiz-progress (falls back to --quiz-primary) lets a quiz override just the progress bar
+   color without touching the rest of the theme. */
 .quiz-progress-track {
   height: 8px;
-  background: color-mix(in srgb, var(--quiz-primary, #c86b4a) 12%, #f0e8db);
+  background: color-mix(in srgb, var(--quiz-progress, var(--quiz-primary, #c86b4a)) 12%, #f0e8db);
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 28px;
@@ -195,8 +197,8 @@ legend {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    var(--quiz-primary, #c86b4a) 0%,
-    color-mix(in srgb, var(--quiz-primary, #c86b4a) 40%, #fff) 100%
+    var(--quiz-progress, var(--quiz-primary, #c86b4a)) 0%,
+    color-mix(in srgb, var(--quiz-progress, var(--quiz-primary, #c86b4a)) 40%, #fff) 100%
   );
   transition: width 0.25s ease;
 }

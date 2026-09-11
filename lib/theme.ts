@@ -8,6 +8,7 @@ export type ClientTheme = {
   font?: string
   radius?: string
   logoUrl?: string
+  progressColor?: string
   pageBackground?: string
   cardBackground?: string
   fieldBackground?: string
@@ -30,6 +31,7 @@ export function themeToCssVars(theme: ClientTheme): CSSProperties {
     '--quiz-secondary': theme.secondary,
     '--quiz-radius': theme.radius ? `${theme.radius}px` : '20px',
     '--quiz-font': theme.font ?? "'General Sans', Inter, sans-serif",
+    ...(theme.progressColor ? { '--quiz-progress': theme.progressColor } : {}),
     ...(theme.pageBackground ? { '--quiz-page-bg': theme.pageBackground } : {}),
     ...(theme.cardBackground ? { '--quiz-card-bg': theme.cardBackground } : {}),
     ...(theme.fieldBackground ? { '--quiz-field-bg': theme.fieldBackground } : {}),
@@ -44,4 +46,20 @@ export function themeToCssVars(theme: ClientTheme): CSSProperties {
       : {}),
     ...(theme.hoverColor ? { '--quiz-hover-bg': theme.hoverColor } : {}),
   } as CSSProperties
+}
+
+/**
+ * Layers a per-quiz theme override on top of a client's base theme — any override field that's
+ * unset or blank falls through to the client's value untouched. Used so a single quiz can get its
+ * own colors without a database migration: the override just lives inside Quiz.schema (JSON),
+ * never touching Client.theme or requiring a new column.
+ */
+export function mergeTheme(base: ClientTheme, override?: Partial<ClientTheme>): ClientTheme {
+  if (!override) return base
+  const result = { ...base }
+  for (const key of Object.keys(override) as (keyof ClientTheme)[]) {
+    const value = override[key]
+    if (value !== undefined && value !== '') (result as any)[key] = value
+  }
+  return result
 }
