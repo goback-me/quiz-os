@@ -32,6 +32,8 @@ model Quiz {
   name      String
   schema    Json     // full quiz definition — steps, options, disqualify rules, endScreen (see lib/quiz-logic.ts for shape)
   status    String   @default("draft") // draft | live | paused
+  webhookUrl String? // ENCRYPTED at rest, same as Client.webhookUrl. Optional per-quiz override —
+                      // null means "use this quiz's client's webhook", same as before this column existed.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -23,6 +23,7 @@ import { DEFAULT_DISQUALIFY_MESSAGE } from '@/lib/quiz-logic'
 import { themeToCssVars, mergeTheme, type ClientTheme } from '@/lib/theme'
 import QuizRenderer from '@/components/QuizRenderer'
 import ConfirmButton from '@/components/admin/ConfirmButton'
+import QuizWebhookField from '@/components/admin/QuizWebhookField'
 
 let idCounter = 0
 function newId(prefix: string) {
@@ -64,6 +65,9 @@ export default function QuizBuilder({
   publicUrl,
   saveQuiz,
   deleteQuiz,
+  hasWebhookOverride,
+  updateQuizWebhook,
+  removeQuizWebhookOverride,
 }: {
   quizId: string
   clientId: string
@@ -73,6 +77,9 @@ export default function QuizBuilder({
   publicUrl: string
   saveQuiz: (formData: FormData) => Promise<void>
   deleteQuiz: () => Promise<void>
+  hasWebhookOverride: boolean
+  updateQuizWebhook: (formData: FormData) => Promise<void>
+  removeQuizWebhookOverride: () => Promise<void>
 }) {
   const [schema, setSchema] = useState<QuizSchema>(initialSchema)
   const [status, setStatus] = useState(initialStatus)
@@ -871,6 +878,16 @@ export default function QuizBuilder({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Webhook override */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Webhook</h3>
+              <QuizWebhookField
+                hasOverride={hasWebhookOverride}
+                updateQuizWebhook={updateQuizWebhook}
+                removeQuizWebhookOverride={removeQuizWebhookOverride}
+              />
             </div>
 
             {/* End screen */}

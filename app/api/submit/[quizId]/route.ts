@@ -80,7 +80,9 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
   })
 
   // Decrypt only in this server function, use immediately, never include in any response.
-  const webhookUrl = decrypt(quiz.client.webhookUrl)
+  // A quiz-level webhookUrl overrides the client's default — lets two quizzes for the same
+  // client forward to two different destinations. Falls back to the client's webhook otherwise.
+  const webhookUrl = decrypt(quiz.webhookUrl ?? quiz.client.webhookUrl)
   const result = await forwardWithRetry(
     webhookUrl,
     {

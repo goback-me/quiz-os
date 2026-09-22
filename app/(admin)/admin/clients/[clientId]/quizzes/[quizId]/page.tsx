@@ -28,6 +28,9 @@ export default async function QuizEditPage({
       publicUrl={`${siteUrl}/q/${quiz.client.slug}/${quiz.slug}`}
       saveQuiz={saveQuiz}
       deleteQuiz={deleteQuiz.bind(null, quiz.id, params.clientId)}
+      hasWebhookOverride={quiz.webhookUrl !== null}
+      updateQuizWebhook={updateQuizWebhook.bind(null, params.clientId, quiz.id)}
+      removeQuizWebhookOverride={removeQuizWebhookOverride.bind(null, params.clientId, quiz.id)}
     />
   )
 }
@@ -39,7 +42,10 @@ async function saveQuiz(formData: FormData) {
   const quizId = String(formData.get('quizId'))
   const status = String(formData.get('status'))
   const schema = JSON.parse(String(formData.get('schema')))
-  await prisma.quiz.update({ where: { id: quizId }, data: { schema, status } })
+  // Keep the admin-facing quiz name in sync with the headline the admin actually edits in the
+  // builder, so the quizzes list shows something meaningful instead of "Untitled Quiz" forever.
+  const name = (typeof schema.headline === 'string' && schema.headline.trim()) || 'Untitled Quiz'
+  await prisma.quiz.update({ where: { id: quizId }, data: { schema, status, name } })
   invalidatePublicQuizCache()
 }
 
@@ -51,4 +57,22 @@ async function deleteQuiz(quizId: string, clientId: string) {
   await prisma.quiz.delete({ where: { id: quizId } }) // Submissions cascade-delete (see prisma/schema.prisma)
   invalidatePublicQuizCache()
   redirect(`/admin/clients/${clientId}`)
+}
+
+async function updateQuizWebhook(clientId: string, quizId: string, formData: FormData) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { encrypt } = await import('@/lib/crypto')
+  const { revalidatePath } = await import('next/cache')
+  const webhookUrl = String(formData.get('webhookUrl'))
+  await prisma.quiz.update({ where: { id: quizId }, data: { webhookUrl: encrypt(webhookUrl) } })
+  revalidatePath(`/admin/clients/${clientId}/quizzes/${quizId}`)
+}
+
+async function removeQuizWebhookOverride(clientId: string, quizId: string) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { revalidatePath } = await import('next/cache')
+  await prisma.quiz.update({ where: { id: quizId }, data: { webhookUrl: null } })
+  revalidatePath(`/admin/clients/${clientId}/quizzes/${quizId}`)
 }
