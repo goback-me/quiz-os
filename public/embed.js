@@ -65,6 +65,9 @@
       var data = event.data;
       if (!data || data.type !== 'quizos:resize') return;
       if (event.source !== iframe.contentWindow) return; // ignore messages from other embeds/iframes on the page
+      // Clear the 480px fallback the moment a real measurement arrives — min-height would
+      // otherwise permanently floor the iframe at 480px, leaving a gap under any shorter quiz.
+      iframe.style.minHeight = '';
       iframe.style.height = data.height + 'px';
     });
   }

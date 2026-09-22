@@ -84,15 +84,14 @@ export default function QuizRenderer({
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   function reportHeight(node: HTMLElement) {
-    // Take the max of the wrapper's own height AND the full document's scrollHeight — a wrapper
-    // alone can under-report if anything inside it (or a sibling like a browser-native validation
-    // tooltip) pushes content taller than the wrapper's own box, which is what was causing the
-    // embed to visibly clip content near the bottom.
-    const height = Math.max(
-      node.offsetHeight,
-      document.documentElement.scrollHeight,
-      document.body.scrollHeight
-    )
+    // node.scrollHeight (not offsetHeight alone) so content that overflows the wrapper's own box
+    // still gets measured correctly — but never document.documentElement/body.scrollHeight. Those
+    // can never report smaller than the iframe's CURRENT viewport height, so once the iframe grew
+    // to any size it could never shrink back down: every later measurement would be floored at
+    // whatever height the iframe last was, even after content became shorter. That's what was
+    // pinning every embed's minimum height at whatever it happened to render on the very first
+    // paint, leaving a large blank gap under short quizzes.
+    const height = Math.max(node.offsetHeight, node.scrollHeight)
     window.parent.postMessage({ type: 'quizos:resize', height }, '*')
   }
 
