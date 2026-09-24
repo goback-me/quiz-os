@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Edit, Palette } from 'lucide-react'
+import { Edit, Palette, CopyPlus } from 'lucide-react'
 import WebhookField from '@/components/admin/WebhookField'
 import QuizStatusToggle from '@/components/admin/QuizStatusToggle'
 import CopyLinkButton from '@/components/admin/CopyLinkButton'
@@ -99,6 +99,15 @@ export default async function ClientDetailPage({ params }: { params: { clientId:
                             <EmbedCodeButton
                               embedCode={`<div data-quiz="${client.slug}/${quiz.slug}"></div>\n<script src="${siteUrl}/embed.js" defer></script>`}
                             />
+                            <form action={duplicateQuiz.bind(null, quiz.id, client.id)}>
+                              <button
+                                type="submit"
+                                title="Duplicate this quiz"
+                                className="bg-white border border-gray-200 text-gray-600 py-1 px-3 rounded-lg text-xs hover:bg-gray-50 transition-colors flex items-center gap-1"
+                              >
+                                <CopyPlus size={14} /> Duplicate
+                              </button>
+                            </form>
                             <ConfirmButton
                               label="Delete"
                               message={`Delete "${quiz.name}" permanently? Its submissions are deleted too.`}
@@ -230,6 +239,27 @@ async function createQuiz(formData: FormData) {
   })
 
   redirect(`/admin/clients/${clientId}/quizzes/${quiz.id}`)
+}
+
+async function duplicateQuiz(quizId: string, clientId: string) {
+  'use server'
+  const { prisma } = await import('@/lib/prisma')
+  const { redirect } = await import('next/navigation')
+  const source = await prisma.quiz.findUnique({ where: { id: quizId } })
+  if (!source) return
+
+  const duplicate = await prisma.quiz.create({
+    data: {
+      clientId,
+      name: `${source.name} (Copy)`,
+      slug: `${source.slug}-copy-${Date.now()}`,
+      status: 'draft', // never duplicate straight into live — avoid two identical quizzes both live at once
+      schema: source.schema as any,
+      webhookUrl: source.webhookUrl,
+    },
+  })
+
+  redirect(`/admin/clients/${clientId}/quizzes/${duplicate.id}`)
 }
 
 async function deleteQuiz(quizId: string, clientId: string) {
