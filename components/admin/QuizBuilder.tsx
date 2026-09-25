@@ -18,7 +18,7 @@ import {
   Phone,
   AlignLeft,
 } from 'lucide-react'
-import type { QuizSchema, QuizStep, QuizOption } from '@/lib/quiz-logic'
+import type { QuizSchema, QuizStep, QuizOption, RedirectParam } from '@/lib/quiz-logic'
 import { DEFAULT_DISQUALIFY_MESSAGE, redirectTokens } from '@/lib/quiz-logic'
 import { themeToCssVars, mergeTheme, type ClientTheme } from '@/lib/theme'
 import QuizRenderer from '@/components/QuizRenderer'
@@ -946,33 +946,93 @@ export default function QuizBuilder({
                     onChange={(e) =>
                       setSchema((prev) => ({ ...prev, endScreen: { ...prev.endScreen, redirectUrl: e.target.value } }))
                     }
-                    placeholder="https://client-site.com/thank-you?name={{fullName}}"
+                    placeholder="https://client-site.com/thank-you"
                     className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
                   />
                 )}
                 {schema.endScreen.redirectUrl !== undefined && (
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1.5">
-                      Click to insert a visitor's answer into the URL (query params like {'{{utm_source}}'} work too):
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {redirectTokens(schema).map((t) => (
-                        <button
-                          key={t.key}
-                          type="button"
-                          title={t.label}
-                          onClick={() =>
-                            setSchema((prev) => ({
-                              ...prev,
-                              endScreen: { ...prev.endScreen, redirectUrl: `${prev.endScreen.redirectUrl ?? ''}{{${t.key}}}` },
-                            }))
-                          }
-                          className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-700 hover:bg-gray-100 max-w-[220px] truncate"
-                        >
-                          {t.label} <span className="text-gray-400 font-mono">{`{{${t.key}}}`}</span>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-gray-600">URL Parameters</div>
+                    {(schema.endScreen.redirectParams ?? []).map((p, i) => {
+                      const update = (patch: Partial<RedirectParam>) =>
+                        setSchema((prev) => ({
+                          ...prev,
+                          endScreen: {
+                            ...prev.endScreen,
+                            redirectParams: (prev.endScreen.redirectParams ?? []).map((x, j) => (j === i ? { ...x, ...patch } : x)),
+                          },
+                        }))
+                      return (
+                        <div key={i} className="flex gap-1.5 items-center">
+                          <input
+                            value={p.key}
+                            onChange={(e) => update({ key: e.target.value })}
+                            placeholder="name"
+                            className="w-24 p-2 bg-white border border-gray-200 rounded-lg text-xs focus:border-black outline-none"
+                          />
+                          <select
+                            value={p.source}
+                            onChange={(e) => update({ source: e.target.value as RedirectParam['source'], value: '' })}
+                            className="p-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
+                          >
+                            <option value="field">Field</option>
+                            <option value="fixed">Fixed</option>
+                          </select>
+                          {p.source === 'field' ? (
+                            <select
+                              value={p.value}
+                              onChange={(e) => update({ value: e.target.value })}
+                              className="flex-1 min-w-0 p-2 bg-white border border-gray-200 rounded-lg text-xs outline-none"
+                            >
+                              <option value="">Select field…</option>
+                              {redirectTokens(schema).map((t) => (
+                                <option key={t.key} value={t.key}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              value={p.value}
+                              onChange={(e) => update({ value: e.target.value })}
+                              placeholder="value"
+                              className="flex-1 min-w-0 p-2 bg-white border border-gray-200 rounded-lg text-xs focus:border-black outline-none"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            aria-label="Remove parameter"
+                            onClick={() =>
+                              setSchema((prev) => ({
+                                ...prev,
+                                endScreen: {
+                                  ...prev.endScreen,
+                                  redirectParams: (prev.endScreen.redirectParams ?? []).filter((_, j) => j !== i),
+                                },
+                              }))
+                            }
+                            className="p-1.5 text-gray-400 hover:text-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSchema((prev) => ({
+                          ...prev,
+                          endScreen: {
+                            ...prev.endScreen,
+                            redirectParams: [...(prev.endScreen.redirectParams ?? []), { key: '', source: 'field', value: '' }],
+                          },
+                        }))
+                      }
+                      className="text-xs font-medium text-gray-600 hover:text-black"
+                    >
+                      + Add parameter
+                    </button>
                   </div>
                 )}
               </div>

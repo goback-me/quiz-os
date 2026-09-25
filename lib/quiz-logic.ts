@@ -51,7 +51,7 @@ export type QuizSchema = {
   showHeadline?: boolean
   steps: QuizStep[]
   disqualifyAction?: DisqualifyAction
-  endScreen: { heading: string; subheading?: string; redirectUrl?: string }
+  endScreen: { heading: string; subheading?: string; redirectUrl?: string; redirectParams?: RedirectParam[] }
   /** Optional trust line shown below the card, e.g. "160+ NDIS participants supported, grown by referral."
    *  Text before the first comma renders bold in the primary color; the rest renders in plain secondary color. */
   trustLine?: string
@@ -141,6 +141,31 @@ export function fillRedirectUrl(url: string, values: Record<string, string | str
     const v = values[key]
     return encodeURIComponent(Array.isArray(v) ? v.join(',') : v ?? '')
   })
+}
+
+/** A query param appended to the end-screen redirect: `value` is an answer key when source is
+ *  'field', literal text when 'fixed'. */
+export type RedirectParam = { key: string; source: 'field' | 'fixed'; value: string }
+
+/** Fills {{key}} placeholders, then appends redirectParams via URL so every value is encoded. */
+export function buildRedirectUrl(
+  url: string,
+  params: RedirectParam[] | undefined,
+  values: Record<string, string | string[] | undefined>
+): string {
+  const filled = fillRedirectUrl(url, values)
+  if (!params?.length) return filled
+  try {
+    const u = new URL(filled)
+    for (const p of params) {
+      if (!p.key.trim()) continue
+      const v = p.source === 'field' ? values[p.value] : p.value
+      u.searchParams.set(p.key.trim(), Array.isArray(v) ? v.join(',') : v ?? '')
+    }
+    return u.toString()
+  } catch {
+    return filled // not an absolute URL — leave it as typed rather than break the redirect
+  }
 }
 
 // Scoped per quizId so blocking one quiz never affects another.
