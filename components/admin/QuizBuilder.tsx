@@ -19,7 +19,7 @@ import {
   AlignLeft,
 } from 'lucide-react'
 import type { QuizSchema, QuizStep, QuizOption } from '@/lib/quiz-logic'
-import { DEFAULT_DISQUALIFY_MESSAGE } from '@/lib/quiz-logic'
+import { DEFAULT_DISQUALIFY_MESSAGE, redirectTokens } from '@/lib/quiz-logic'
 import { themeToCssVars, mergeTheme, type ClientTheme } from '@/lib/theme'
 import QuizRenderer from '@/components/QuizRenderer'
 import ConfirmButton from '@/components/admin/ConfirmButton'
@@ -946,9 +946,34 @@ export default function QuizBuilder({
                     onChange={(e) =>
                       setSchema((prev) => ({ ...prev, endScreen: { ...prev.endScreen, redirectUrl: e.target.value } }))
                     }
-                    placeholder="https://client-site.com/thank-you"
+                    placeholder="https://client-site.com/thank-you?name={{fullName}}"
                     className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-black outline-none"
                   />
+                )}
+                {schema.endScreen.redirectUrl !== undefined && (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">
+                      Click to insert a visitor's answer into the URL (query params like {'{{utm_source}}'} work too):
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {redirectTokens(schema).map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          title={t.label}
+                          onClick={() =>
+                            setSchema((prev) => ({
+                              ...prev,
+                              endScreen: { ...prev.endScreen, redirectUrl: `${prev.endScreen.redirectUrl ?? ''}{{${t.key}}}` },
+                            }))
+                          }
+                          className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-700 hover:bg-gray-100 max-w-[220px] truncate"
+                        >
+                          {t.label} <span className="text-gray-400 font-mono">{`{{${t.key}}}`}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

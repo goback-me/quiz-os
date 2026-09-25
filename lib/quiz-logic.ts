@@ -122,6 +122,27 @@ export function formatAnswersForWebhook(schema: QuizSchema, answers: Answers): F
 
   return formatted
 }
+/** Every answer key a redirect URL can reference as {{key}}, with a human label for the builder. */
+export function redirectTokens(schema: QuizSchema): { key: string; label: string }[] {
+  return schema.steps.flatMap((step) =>
+    step.type === 'contact_fields'
+      ? step.fields.map((f) => ({ key: f.name, label: f.label }))
+      : [{ key: step.id, label: step.question }]
+  )
+}
+
+/**
+ * Replaces {{key}} in a redirect URL with the visitor's answer (or a captured query param, e.g.
+ * {{utm_source}}), URL-encoded. Unknown keys become empty so a raw "{{x}}" never leaks into the URL.
+ * Multi-select answers join with a comma.
+ */
+export function fillRedirectUrl(url: string, values: Record<string, string | string[] | undefined>): string {
+  return url.replace(/\{\{\s*([\w-]+)\s*\}\}/g, (_, key: string) => {
+    const v = values[key]
+    return encodeURIComponent(Array.isArray(v) ? v.join(',') : v ?? '')
+  })
+}
+
 // Scoped per quizId so blocking one quiz never affects another.
 export const disqualifyStorageKey = (quizId: string) => `quizos_dq_${quizId}`
 export const disqualifyCookieName = (quizId: string) => `quizos_dq_${quizId}`

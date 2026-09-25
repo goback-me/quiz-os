@@ -10,6 +10,7 @@ import {
   disqualifyCookieName,
   validateFieldValue,
   DEFAULT_DISQUALIFY_MESSAGE,
+  fillRedirectUrl,
 } from '@/lib/quiz-logic'
 
 function getCookie(name: string): string | null {
@@ -294,13 +295,15 @@ export default function QuizRenderer({
             : { mode: 'message', message: data.message }
         )
       } else if (schema.endScreen.redirectUrl) {
+        // {{fieldKey}} placeholders get the visitor's answers; answers win over same-named query params.
+        const url = fillRedirectUrl(schema.endScreen.redirectUrl, { ...capturedParams, ...answers, ...contact })
         // window.top (not window) — navigates the whole browser tab, not just this iframe.
         // Falls back to window.location if top-navigation is ever blocked (rare, only happens
         // if the embedding site explicitly sandboxes the iframe without allow-top-navigation).
         try {
-          window.top!.location.href = schema.endScreen.redirectUrl
+          window.top!.location.href = url
         } catch {
-          window.location.href = schema.endScreen.redirectUrl
+          window.location.href = url
         }
       } else {
         setSubmitted(true)
