@@ -28,7 +28,10 @@
   function buildSrc(origin, quizPath) {
     var parentParams = window.location.search; // e.g. "?utm_source=facebook&campaign=..."
     var cleanPath = quizPath.replace(/^\/+|\/+$/g, ''); // trim slashes
-    return origin + '/q/' + cleanPath + parentParams;
+    // The iframe can't see the host page's URL (cross-origin referrer is trimmed to the domain),
+    // so pass it explicitly — lands in the webhook payload as pageUrl.
+    var pageUrl = (parentParams ? '&' : '?') + 'page_url=' + encodeURIComponent(window.location.href);
+    return origin + '/q/' + cleanPath + parentParams + pageUrl;
   }
 
   function addPreconnect(origin) {

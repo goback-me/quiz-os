@@ -92,6 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       answers, // raw, for automations that key off internal field IDs
       questions: formatAnswersForWebhook(schema, answers), // readable — actual question text + answer label, e.g. [{ question: "What are you mainly looking to consolidate?", answer: "Credit cards" }]
       utm,
+      pageUrl: utm?.page_url ?? null, // page the quiz was filled on (host page when embedded)
       submittedAt: submission.createdAt,
     },
     quiz.client.webhookSecret

@@ -33,6 +33,8 @@ function captureUtm(): Record<string, string> {
   params.forEach((value, key) => {
     captured[key] = value
   })
+  // embed.js sets page_url to the host page; opened directly, the quiz page itself is the page.
+  if (!captured.page_url) captured.page_url = window.location.href
   return captured
 }
 
