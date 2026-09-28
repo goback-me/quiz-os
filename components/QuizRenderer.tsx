@@ -348,7 +348,7 @@ export default function QuizRenderer({
         <div className="quiz-progress-track">
           <div className="quiz-progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
-        {currentStep.type !== 'contact_fields' && (
+        {currentStep.type !== 'contact_fields' && schema.showQuestionNumber !== false && (
           <p className="quiz-eyebrow">Question {stepIndex + 1}</p>
         )}
 

@@ -49,6 +49,8 @@ export type QuizSchema = {
   subheadline?: string
   /** Whether the headline renders above the card on the public page. Default true if omitted. */
   showHeadline?: boolean
+  /** Whether the "QUESTION N" label renders above each question. Default true if omitted. */
+  showQuestionNumber?: boolean
   steps: QuizStep[]
   disqualifyAction?: DisqualifyAction
   endScreen: { heading: string; subheading?: string; redirectUrl?: string; redirectParams?: RedirectParam[] }

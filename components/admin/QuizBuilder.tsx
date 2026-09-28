@@ -691,6 +691,24 @@ export default function QuizBuilder({
                     />
                   </button>
                 </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Show question number</div>
+                    <div className="text-xs text-gray-500">Turn off to remove the "QUESTION 1" label above each question</div>
+                  </div>
+                  <button
+                    onClick={() => setSchema((prev) => ({ ...prev, showQuestionNumber: prev.showQuestionNumber === false }))}
+                    className={`w-10 h-6 rounded-full relative transition-colors shrink-0 ml-4 ${
+                      schema.showQuestionNumber !== false ? 'bg-black' : 'bg-gray-200'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                        schema.showQuestionNumber !== false ? 'translate-x-5' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
                 <div className="pt-2 border-t border-gray-100">
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
                     Trust line (optional, shown below the card)
