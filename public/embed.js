@@ -66,8 +66,14 @@
 
     window.addEventListener('message', function (event) {
       var data = event.data;
-      if (!data || data.type !== 'quizos:resize') return;
-      if (event.source !== iframe.contentWindow) return; // ignore messages from other embeds/iframes on the page
+      if (!data || event.source !== iframe.contentWindow) return; // ignore messages from other embeds/iframes on the page
+      if (data.type === 'quizos:event') {
+        // Quiz funnel events (quiz_step / quiz_submit / quiz_disqualified) land in the HOST page's
+        // dataLayer, so the site's own GTM can trigger on them — no pixel needed inside the iframe.
+        (window.dataLayer = window.dataLayer || []).push(data.payload);
+        return;
+      }
+      if (data.type !== 'quizos:resize') return;
       // Clear the 480px fallback the moment a real measurement arrives — min-height would
       // otherwise permanently floor the iframe at 480px, leaving a gap under any shorter quiz.
       iframe.style.minHeight = '';

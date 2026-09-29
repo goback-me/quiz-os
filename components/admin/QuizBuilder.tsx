@@ -669,6 +669,29 @@ export default function QuizBuilder({
               </div>
             </div>
 
+            {/* Tracking */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-3">Tracking</h3>
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Tracking code (Meta Pixel, Google Tag Manager, GA…)
+                </label>
+                <textarea
+                  value={schema.trackingCode ?? ''}
+                  onChange={(e) => setSchema((prev) => ({ ...prev, trackingCode: e.target.value || undefined }))}
+                  rows={5}
+                  spellCheck={false}
+                  placeholder="<!-- Meta Pixel Code -->&#10;<script>...</script>"
+                  className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-mono focus:border-black outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Loads on the live quiz only (not this preview). Fires dataLayer events quiz_step, quiz_submit and
+                  quiz_disqualified; a Meta Pixel also gets a Lead event on submit. Embedded quizzes send the same
+                  events to the host page's dataLayer.
+                </p>
+              </div>
+            </div>
+
             {/* Display settings */}
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Display</h3>

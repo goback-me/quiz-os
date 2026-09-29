@@ -163,6 +163,41 @@ export default function QuizRenderer({
   const currentStep = steps[stepIndex]
   const progressPct = ((stepIndex + 1) / steps.length) * 100
 
+  // Admin-pasted tracking code (Meta Pixel, GTM, GA…). Scripts set via innerHTML never run, so each
+  // <script> is recreated as a real element. Never in preview — the builder must not fire pixels.
+  useEffect(() => {
+    if (preview || !schema.trackingCode) return
+    const tpl = document.createElement('template')
+    tpl.innerHTML = schema.trackingCode
+    tpl.content.childNodes.forEach((node) => {
+      if (node instanceof HTMLScriptElement) {
+        const s = document.createElement('script')
+        for (const attr of Array.from(node.attributes)) s.setAttribute(attr.name, attr.value)
+        s.text = node.text
+        document.head.appendChild(s)
+      } else if (node instanceof Element) {
+        document.head.appendChild(node.cloneNode(true))
+      }
+    })
+  }, [preview, schema.trackingCode])
+
+  // Funnel events: pushed to this page's dataLayer (GTM) and, when embedded, to the host page's
+  // dataLayer via embed.js. No answers/PII in the payload — it's posted to a third-party page.
+  function track(event: 'quiz_step' | 'quiz_submit' | 'quiz_disqualified', data: Record<string, unknown> = {}) {
+    if (preview) return
+    const payload = { event, quiz_id: quizId, quiz_name: schema.headline, ...data }
+    const w = window as any
+    ;(w.dataLayer = w.dataLayer || []).push(payload)
+    if (event === 'quiz_submit') w.fbq?.('track', 'Lead') // only defined if a Meta Pixel was pasted above
+    if (window.parent !== window) window.parent.postMessage({ type: 'quizos:event', payload }, '*')
+  }
+
+  useEffect(() => {
+    if (!checkedStorage || disqualifyMessage) return
+    track('quiz_step', { step_number: stepIndex + 1, step_count: steps.length })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIndex, checkedStorage])
+
   // Shared by the instant client-side check (selectOption/continueMultiSelect) and the
   // server-confirmed result from handleSubmit — both hit the same two outcome modes. In preview
   // mode this only ever updates local state: no localStorage/cookie writes (would leak into the
@@ -178,12 +213,16 @@ export default function QuizRenderer({
     const serialized = JSON.stringify(data)
     localStorage.setItem(disqualifyStorageKey(quizId), serialized)
     setCookie(disqualifyCookieName(quizId), serialized)
+    track('quiz_disqualified')
     if (data.mode === 'redirect') {
-      try {
-        window.top!.location.href = data.redirectUrl!
-      } catch {
-        window.location.href = data.redirectUrl!
-      }
+      // ponytail: fixed 300ms so pixels can send before the tab navigates; use GTM eventCallback if it ever drops hits
+      setTimeout(() => {
+        try {
+          window.top!.location.href = data.redirectUrl!
+        } catch {
+          window.location.href = data.redirectUrl!
+        }
+      }, 300)
       return
     }
     setDisqualifyMessage(data.message ?? DEFAULT_DISQUALIFY_MESSAGE)
@@ -297,6 +336,7 @@ export default function QuizRenderer({
             : { mode: 'message', message: data.message }
         )
       } else if (schema.endScreen.redirectUrl) {
+        track('quiz_submit')
         // {{fieldKey}} placeholders get the visitor's answers; answers win over same-named query params.
         const url = buildRedirectUrl(schema.endScreen.redirectUrl, schema.endScreen.redirectParams, {
           ...capturedParams,
@@ -306,12 +346,16 @@ export default function QuizRenderer({
         // window.top (not window) — navigates the whole browser tab, not just this iframe.
         // Falls back to window.location if top-navigation is ever blocked (rare, only happens
         // if the embedding site explicitly sandboxes the iframe without allow-top-navigation).
-        try {
-          window.top!.location.href = url
-        } catch {
-          window.location.href = url
-        }
+        // Short delay so tracking pixels fired just above can send before the page unloads.
+        setTimeout(() => {
+          try {
+            window.top!.location.href = url
+          } catch {
+            window.location.href = url
+          }
+        }, 300)
       } else {
+        track('quiz_submit')
         setSubmitted(true)
       }
     } catch {

@@ -61,6 +61,9 @@ export type QuizSchema = {
    *  mergeTheme) — lives here in the JSON schema rather than a new DB column, so it never needs
    *  a migration. Any field left unset falls back to the client's default. */
   themeOverride?: Partial<ClientTheme>
+  /** Admin-pasted HTML (<script> tags from Meta Pixel, GTM, GA…) injected into the public quiz page's
+   *  <head>. Never runs in the builder preview. */
+  trackingCode?: string
 }
 
 export type Answers = Record<string, string | string[]>
