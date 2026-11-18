@@ -11,9 +11,10 @@ export type QuizOption = {
   description?: string
   /** Optional emoji/icon shown in a small box before the label, e.g. "✅". Blank hides it. */
   icon?: string
-  /** When true, selecting this specific option disqualifies the visitor. Lives directly on the
-   *  option — no separate rule list to keep in sync, no dropdown to pick "which question". */
-  disqualify?: boolean
+  /** true = hard disqualify: blocked the moment this option is picked. 'soft' = the visitor finishes
+   *  and submits the form, then gets the disqualify outcome instead of the end screen. Lives directly
+   *  on the option — no separate rule list to keep in sync, no dropdown to pick "which question". */
+  disqualify?: boolean | 'soft'
 }
 
 export type QuizStep =
@@ -68,28 +69,38 @@ export type QuizSchema = {
 
 export type Answers = Record<string, string | string[]>
 
-export type DisqualifyResult = { mode: 'message'; message: string } | { mode: 'redirect'; redirectUrl: string }
+export type DisqualifyResult = ({ mode: 'message'; message: string } | { mode: 'redirect'; redirectUrl: string }) & {
+  /** True when only soft-disqualify options were hit — the visitor still gets to submit. */
+  soft: boolean
+}
 
 /**
- * Scans every single/multi-select step's answered value(s) for one flagged with `disqualify: true`.
- * Called after every answer client-side (for instant feedback) and again server-side on submit
- * (never trust the client — someone could tamper with the request before it hits /api/submit).
+ * Scans every single/multi-select step's answered value(s) for a disqualifying option. A hard hit
+ * wins over a soft one. Called after every answer client-side (for instant feedback — only hard
+ * results block mid-quiz) and again server-side on submit (never trust the client — someone could
+ * tamper with the request before it hits /api/submit).
  */
 export function evaluateDisqualify(schema: QuizSchema, answers: Answers): DisqualifyResult | null {
+  const outcome = (soft: boolean): DisqualifyResult => {
+    const action = schema.disqualifyAction
+    if (action?.mode === 'redirect' && action.redirectUrl) {
+      return { mode: 'redirect', redirectUrl: action.redirectUrl, soft }
+    }
+    return { mode: 'message', message: (action?.mode === 'message' && action.message) || DEFAULT_DISQUALIFY_MESSAGE, soft }
+  }
+
+  let softHit = false
   for (const step of schema.steps) {
     if (step.type !== 'single_select' && step.type !== 'multi_select') continue
     const value = answers[step.id]
     const selected = Array.isArray(value) ? value : value !== undefined ? [value] : []
-    const hit = step.options.some((o) => o.disqualify && selected.includes(o.value))
-    if (!hit) continue
-
-    const action = schema.disqualifyAction
-    if (action?.mode === 'redirect' && action.redirectUrl) {
-      return { mode: 'redirect', redirectUrl: action.redirectUrl }
+    for (const o of step.options) {
+      if (!o.disqualify || !selected.includes(o.value)) continue
+      if (o.disqualify !== 'soft') return outcome(false)
+      softHit = true
     }
-    return { mode: 'message', message: (action?.mode === 'message' && action.message) || DEFAULT_DISQUALIFY_MESSAGE }
   }
-  return null
+  return softHit ? outcome(true) : null
 }
 
 /**

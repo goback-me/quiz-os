@@ -420,17 +420,25 @@ export default function QuizBuilder({
                                   className="flex-1 p-1.5 bg-white border border-gray-200 rounded text-sm focus:border-black outline-none"
                                 />
                                 <label
-                                  className={`flex items-center gap-1.5 text-xs shrink-0 cursor-pointer select-none transition-opacity ${
+                                  className={`flex items-center gap-1 text-xs shrink-0 cursor-pointer select-none transition-opacity ${
                                     opt.disqualify ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                                   }`}
-                                  title="Selecting this option disqualifies the visitor"
+                                  title="Hard: blocked as soon as this option is picked. Soft: can finish and submit, then sees the disqualify outcome."
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={opt.disqualify ?? false}
-                                    onChange={(e) => updateOption(optIndex, { disqualify: e.target.checked })}
-                                  />
                                   <Ban size={13} className={opt.disqualify ? 'text-red-500' : 'text-gray-300'} />
+                                  <select
+                                    value={opt.disqualify === 'soft' ? 'soft' : opt.disqualify ? 'hard' : ''}
+                                    onChange={(e) =>
+                                      updateOption(optIndex, {
+                                        disqualify: e.target.value === 'soft' ? 'soft' : e.target.value === 'hard' || undefined,
+                                      })
+                                    }
+                                    className="bg-transparent text-xs outline-none cursor-pointer"
+                                  >
+                                    <option value="">No DQ</option>
+                                    <option value="hard">Hard DQ</option>
+                                    <option value="soft">Soft DQ</option>
+                                  </select>
                                 </label>
                                 <button
                                   onClick={() =>
@@ -467,7 +475,7 @@ export default function QuizBuilder({
                             <Plus size={14} /> Add Option
                           </button>
                           <p className="text-xs text-gray-400 flex items-center gap-1 mt-2">
-                            <Ban size={12} /> Toggle the icon next to an option to disqualify visitors who pick it
+                            <Ban size={12} /> Set Hard DQ (blocked instantly) or Soft DQ (submits form first) on an option
                           </p>
                         </div>
                       </div>
@@ -605,9 +613,10 @@ export default function QuizBuilder({
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
                 <p className="text-xs text-gray-500">
                   Mark which answers disqualify a visitor directly on each question's options (the{' '}
-                  <Ban size={11} className="inline text-red-500" /> icon next to each option, above). This section
-                  controls what happens once one of those options is picked — the same outcome applies everywhere in
-                  this quiz.
+                  <Ban size={11} className="inline text-red-500" /> picker next to each option, above). Hard DQ
+                  shows this outcome as soon as the option is picked; Soft DQ lets the visitor finish and submit the
+                  form (the lead is still sent to the webhook, flagged <code>disqualified: true</code>), then shows
+                  this outcome instead of the end screen. The same outcome applies everywhere in this quiz.
                 </p>
 
                 <div className="flex gap-2">

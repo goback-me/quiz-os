@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { forwardWithRetry } from '@/lib/webhook'
-import { evaluateDisqualify, validateAnswers, formatAnswersForWebhook, QuizSchema, Answers } from '@/lib/quiz-logic'
+import {
+  evaluateDisqualify,
+  validateAnswers,
+  formatAnswersForWebhook,
+  QuizSchema,
+  Answers,
+  DisqualifyResult,
+} from '@/lib/quiz-logic'
 
 // Basic in-memory rate limit per IP — swap for a Postgres/Redis backed one if you scale this
 // across multiple containers. Good enough for single-instance VPS deploys like your others.
@@ -19,6 +26,17 @@ function rateLimited(ip: string): boolean {
   }
   entry.count++
   return entry.count > MAX_PER_WINDOW
+}
+
+// Same shape as a normal response — nothing about *why* leaks anything about the client's webhook.
+function disqualifiedResponse(r: DisqualifyResult) {
+  return NextResponse.json({
+    ok: true,
+    disqualified: true,
+    disqualifyMode: r.mode,
+    message: r.mode === 'message' ? r.message : undefined,
+    redirectUrl: r.mode === 'redirect' ? r.redirectUrl : undefined,
+  })
 }
 
 export async function POST(req: NextRequest, { params }: { params: { quizId: string } }) {
@@ -54,7 +72,9 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
   // NEVER trust the client's disqualify check — re-run it here. This is the check that counts.
   const disqualifyResult = evaluateDisqualify(schema, answers)
 
-  if (disqualifyResult) {
+  // Hard disqualify: saved but never forwarded. Soft disqualify falls through — the lead is saved
+  // and forwarded (flagged disqualified), then the visitor gets the disqualify outcome below.
+  if (disqualifyResult && !disqualifyResult.soft) {
     await prisma.submission.create({
       data: {
         quizId: quiz.id,
@@ -65,18 +85,20 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
         webhookStatus: 'skipped', // disqualified leads are never forwarded to the client's webhook
       },
     })
-    // Same shape as a normal response — nothing about *why* leaks anything about the client's webhook.
-    return NextResponse.json({
-      ok: true,
-      disqualified: true,
-      disqualifyMode: disqualifyResult.mode,
-      message: disqualifyResult.mode === 'message' ? disqualifyResult.message : undefined,
-      redirectUrl: disqualifyResult.mode === 'redirect' ? disqualifyResult.redirectUrl : undefined,
-    })
+    return disqualifiedResponse(disqualifyResult)
   }
 
   const submission = await prisma.submission.create({
-    data: { quizId: quiz.id, answers, utm, webhookStatus: 'pending' },
+    data: {
+      quizId: quiz.id,
+      answers,
+      utm,
+      webhookStatus: 'pending',
+      ...(disqualifyResult && {
+        disqualified: true,
+        disqualifyMsg: `soft:${disqualifyResult.mode === 'message' ? disqualifyResult.message : `redirect:${disqualifyResult.redirectUrl}`}`,
+      }),
+    },
   })
 
   // Decrypt only in this server function, use immediately, never include in any response.
@@ -93,6 +115,7 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
       questions: formatAnswersForWebhook(schema, answers), // readable — actual question text + answer label, e.g. [{ question: "What are you mainly looking to consolidate?", answer: "Credit cards" }]
       utm,
       pageUrl: utm?.page_url ?? null, // page the quiz was filled on (host page when embedded)
+      disqualified: !!disqualifyResult, // only ever true here for a soft disqualify
       submittedAt: submission.createdAt,
     },
     quiz.client.webhookSecret
@@ -108,5 +131,6 @@ export async function POST(req: NextRequest, { params }: { params: { quizId: str
   })
 
   // Client only ever learns "it worked" — never the webhook URL, status detail, or client config.
+  if (disqualifyResult) return disqualifiedResponse(disqualifyResult)
   return NextResponse.json({ ok: true, disqualified: false })
 }

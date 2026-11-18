@@ -243,8 +243,9 @@ export default function QuizRenderer({
     setAnswers(nextAnswers)
 
     // Instant client-side check for UX — the real enforcement happens again server-side on submit.
+    // Soft disqualifies don't block here; they apply after the form is submitted.
     const result = evaluateDisqualify(schema, nextAnswers)
-    if (result) {
+    if (result && !result.soft) {
       applyDisqualifyOutcome(result)
       return
     }
@@ -265,7 +266,7 @@ export default function QuizRenderer({
       return
     }
     const result = evaluateDisqualify(schema, answers)
-    if (result) {
+    if (result && !result.soft) {
       applyDisqualifyOutcome(result)
       return
     }

@@ -47,10 +47,15 @@ should disqualify a visitor who picks it. In the schema JSON it looks like:
   "question": "What best describes your current employment situation?",
   "options": [
     { "label": "Full-time employed", "value": "full_time" },
-    { "label": "Centrelink", "value": "centrelink", "disqualify": true }
+    { "label": "Centrelink", "value": "centrelink", "disqualify": true },
+    { "label": "Self-employed", "value": "self_employed", "disqualify": "soft" }
   ]
 }
 ```
+- `"disqualify": true` (**Hard DQ**) — the visitor is blocked the moment they pick it. Never forwarded.
+- `"disqualify": "soft"` (**Soft DQ**) — the visitor finishes the quiz and submits the form; the lead
+  is saved and forwarded to the webhook with `"disqualified": true`, then the visitor gets the
+  disqualify outcome below instead of the end screen. A hard hit always wins over a soft one.
 What happens when a disqualifying option gets picked is a single quiz-wide setting (the "When
 Disqualified" section in the builder, below the questions) — either show a message (custom text,
 or leave blank for a sensible default) or redirect to a URL:
