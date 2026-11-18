@@ -615,7 +615,8 @@ export default function QuizBuilder({
                   Mark which answers disqualify a visitor directly on each question's options (the{' '}
                   <Ban size={11} className="inline text-red-500" /> picker next to each option, above). Hard DQ
                   shows this outcome as soon as the option is picked; Soft DQ lets the visitor finish and submit the
-                  form (the lead is still sent to the webhook, flagged <code>disqualified: true</code>), then shows
+                  form (the lead is still sent to the webhook with <code>leadStatus: "soft_disqualified"</code>;
+                  qualified leads get <code>"qualified"</code>), then shows
                   this outcome instead of the end screen. The same outcome applies everywhere in this quiz.
                 </p>
 

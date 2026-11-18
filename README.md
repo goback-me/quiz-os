@@ -54,7 +54,7 @@ should disqualify a visitor who picks it. In the schema JSON it looks like:
 ```
 - `"disqualify": true` (**Hard DQ**) — the visitor is blocked the moment they pick it. Never forwarded.
 - `"disqualify": "soft"` (**Soft DQ**) — the visitor finishes the quiz and submits the form; the lead
-  is saved and forwarded to the webhook with `"disqualified": true`, then the visitor gets the
+  is saved and forwarded to the webhook with `"leadStatus": "soft_disqualified"`, then the visitor gets the
   disqualify outcome below instead of the end screen. A hard hit always wins over a soft one.
 What happens when a disqualifying option gets picked is a single quiz-wide setting (the "When
 Disqualified" section in the builder, below the questions) — either show a message (custom text,
@@ -221,9 +221,13 @@ to cross-reference `q1`/`q2` field IDs against the quiz schema to know what was 
     { "question": "Full name", "answer": "Jane Doe" }
   ],
   "utm": { "utm_source": "facebook", "campaign": "Q3-Leads" },
+  "leadStatus": "qualified",
   "submittedAt": "2026-08-24T12:00:00.000Z"
 }
 ```
+`leadStatus` is `"qualified"` for a lead that hit no disqualify option, or `"soft_disqualified"` when
+a Soft DQ option was picked. Hard-disqualified leads are never sent. Route on it in n8n/your CRM.
+
 `questions` (`lib/quiz-logic.ts` → `formatAnswersForWebhook`) resolves each field ID to its actual
 question text and each option value to its label — for `multi_select`, multiple selections join
 with a comma. Use `questions` for anything human-facing (Slack notification, email, n8n field
