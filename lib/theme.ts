@@ -24,6 +24,9 @@ export type ClientTheme = {
   buttonBorderWidth?: string
   hoverColor?: string
   hoverTextColor?: string
+  // "on" = a soft shadow round the form when it's embedded on a site, so it stands out on a
+  // white page (embeds are otherwise flat — see .quiz-embedded in app/globals.css).
+  cardShadow?: string
 }
 
 // Turns a client's theme into the CSS custom properties `.quiz-page` and its children read
@@ -53,6 +56,8 @@ export function themeToCssVars(theme: ClientTheme): CSSProperties {
       : {}),
     ...(theme.hoverColor ? { '--quiz-hover-bg': theme.hoverColor } : {}),
     ...(theme.hoverTextColor ? { '--quiz-hover-text': theme.hoverTextColor } : {}),
+    // The gap leaves the shadow room inside the iframe so its edges aren't clipped.
+    ...(theme.cardShadow === 'on' ? { '--quiz-embed-shadow': '0 2px 16px rgba(0, 0, 0, 0.08)', '--quiz-embed-gap': '12px' } : {}),
   } as CSSProperties
 }
 

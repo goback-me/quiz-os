@@ -58,9 +58,11 @@ body {
 .quiz-embedded .quiz-card,
 .quiz-card.quiz-embedded {
   max-width: 100%;
-  width: 100%;
-  box-shadow: none;
-  margin: 0;
+  /* Flat by default; a quiz with the "Shadow around the form" option gets a soft shadow
+     and a small gap so the iframe edge doesn't clip it (lib/theme.ts cardShadow). */
+  width: calc(100% - 2 * var(--quiz-embed-gap, 0px));
+  box-shadow: var(--quiz-embed-shadow, none);
+  margin: var(--quiz-embed-gap, 0);
 }
 
 .quiz-embedded .quiz-page-headline {

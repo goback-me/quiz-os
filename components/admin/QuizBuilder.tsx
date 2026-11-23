@@ -813,6 +813,14 @@ export default function QuizBuilder({
                     fallback={theme.cardBackground || '#ffffff'}
                     onChange={(v) => updateThemeOverride({ cardBackground: v })}
                   />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={(schema.themeOverride?.cardShadow ?? theme.cardShadow) === 'on'}
+                      onChange={(e) => updateThemeOverride({ cardShadow: e.target.checked ? 'on' : '' })}
+                    />
+                    Shadow around the form (stands out on white websites)
+                  </label>
                   <OverrideColorField
                     label="Field Background"
                     value={schema.themeOverride?.fieldBackground ?? ''}
